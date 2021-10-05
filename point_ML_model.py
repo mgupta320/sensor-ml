@@ -1,15 +1,14 @@
-import data_processing as dp
 import torch
 import torch.nn as nn
+from data_processing import ModelData
 from torch.utils.data import Dataset, DataLoader
 
 
 class PointDataset(Dataset):
-    def __init__(self, train_or_test):
-        xy = dp.load_arrays("data/np_point_arrays.npz")
-        self.x = torch.from_numpy(xy[train_or_test % 2])
-        self.y = torch.from_numpy((xy[train_or_test % 2 + 2]))
-        self.n_samples = (xy[train_or_test % 2]).shape[0]
+    def __init__(self, data, labels):
+        self.x = data
+        self.y = labels
+        self.n_samples = len(data)
 
     def __getitem__(self, index):
         return self.x[index], self.y[index]
@@ -33,13 +32,15 @@ class PointModel(nn.Module):
             x = torch.sigmoid(self.linear(x))
         else:
             x = torch.sigmoid(self.linear2(self.linear1(x)))
-        y_predicted = nn.log_softmax(x)
+        y_predicted = nn.functional.log_softmax(x)
         return y_predicted
 
 
-def get_train_test(batch_size):
-    train_dataset = PointDataset(0)
-    test_dataset = PointDataset(1)
+def get_train_test(batch_size, file_name="data/data.csv"):
+    model_data = ModelData(file_name)
+    x_train, x_test, y_train, y_test = model_data.create_test_train("point")
+    train_dataset = PointDataset(x_train, y_train)
+    test_dataset = PointDataset(x_test, y_test)
     training = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     testing = DataLoader(dataset=test_dataset, shuffle=True)
     print(
