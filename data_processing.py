@@ -8,11 +8,12 @@ class ModelData:
         self.data = pd.read_csv(file_name, sep=',', header=None).to_numpy()
         point_x, point_y = self.data_to_arrays(self.data)
         self.point_x = point_x
-        self.point_y = point_y
+        self.point_y = np.argmax(point_y, axis=-1)
         time_x, time_y = self.point_to_time(self.point_x, self.point_y, time_steps, num_samples)
         self.time_x = time_x
         self.time_y = time_y
         self.time_steps = time_steps
+
 
     def data_to_arrays(self, total_data):
         # separate input data and labelled outputs for model
@@ -26,7 +27,7 @@ class ModelData:
     def point_to_time(self, point_data, point_labels, time_steps=10, num_samples=1346):
         time_data = np.empty(
             ((len(point_data) - time_steps * len(point_data) // num_samples), time_steps, point_data.shape[1]))
-        time_labels = np.empty((time_data.shape[0], point_labels.shape[1]))
+        time_labels = np.empty((time_data.shape[0]))
         i = 0
         n = 0
         while i < len(point_data):

@@ -28,11 +28,14 @@ class PointModel(nn.Module):
             self.linear2 = nn.Linear(n_hidden, 25)
 
     def forward(self, x):
+        x = x.float()
         if self.n_hidden == 0:
-            x = torch.sigmoid(self.linear(x))
+            x = self.linear(x)
         else:
-            x = torch.sigmoid(self.linear2(self.linear1(x)))
-        y_predicted = nn.functional.log_softmax(x)
+            x = self.linear1(x)
+            x = self.linear2(x)
+        x = torch.sigmoid(x)
+        y_predicted = nn.functional.log_softmax(x, dim=1)
         return y_predicted
 
 
@@ -72,23 +75,25 @@ def train_point_model(point_model, training_data, testing_data, lr, epochs, acc_
             if diff < .001:
                 print('Training terminated early due to diminishing returns\n')
                 break
-        print(f'Training completed with accuracy of {acc}\n')
-        return acc
+    print(f'Training completed with accuracy of {acc}\n')
+    return acc
 
 
 def test_point_model(model, testing_set):
     model.eval()
     test_loss = 0
     correct = 0
+    criterion = nn.NLLLoss(reduction='sum')
     with torch.no_grad():
         for test_data, test_labels in testing_set:
             output = model(test_data)
-            test_loss += nn.NLLLoss(output, test_labels, reduction='sum').item()
+            loss = criterion(output, test_labels)
+            test_loss += loss.item()
             predicted_label = output.argmax(dim=1, keepdim=True)
             correct += predicted_label.eq(test_labels.view_as(predicted_label)).sum().item()
     test_loss /= len(testing_set.dataset)
     acc = 100 * correct / len(testing_set.dataset)
-    print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)}\n")
+    print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")
     return acc
 
 
