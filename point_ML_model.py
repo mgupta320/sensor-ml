@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from data_processing import ModelData
 from torch.utils.data import Dataset, DataLoader
+from csv import writer
 
 
 class PointDataset(Dataset):
@@ -51,8 +52,9 @@ def get_train_test(batch_size, file_name="data/data.csv"):
     return training, testing
 
 
-def train_point_model(point_model, training_data, testing_data, lr, epochs, acc_interval=50):
-    print(f'Beginning training with {epochs} epochs at learning rate of {lr}\n')
+def train_point_model(point_model, training_data, testing_data, lr, epochs=1000, acc_interval=50, output=True):
+    if output:
+        print(f'Beginning training with {epochs} epochs at learning rate of {lr}\n')
     criterion = nn.NLLLoss()
     optimizer = torch.optim.Adam(point_model.parameters(), lr=lr)
     acc = 0
@@ -64,22 +66,26 @@ def train_point_model(point_model, training_data, testing_data, lr, epochs, acc_
             loss = criterion(output, train_labels)
             loss.backward()
             optimizer.step()
-        if (epoch + 1) % (epochs // acc_interval) == 0:
-            print(f'epoch: {epoch + 1}/{epochs}')
-            new_acc = test_point_model(point_model, testing_data)
+        if (epoch + 1) % acc_interval == 0:
+            if output:
+                print(f'epoch: {epoch + 1}/{epochs}')
+            new_acc = test_point_model(point_model, testing_data, output)
             diff = new_acc - acc
             acc = new_acc
             if acc >= 99:
-                print('Training terminated early due to high accuracy\n')
+                if output:
+                    print('Training terminated early due to high accuracy\n')
                 break
             if diff < .001:
-                print('Training terminated early due to diminishing returns\n')
+                if output:
+                    print('Training terminated early due to diminishing returns\n')
                 break
-    print(f'Training completed with accuracy of {acc}\n')
+    if output:
+        print(f'Training completed with accuracy of {acc}\n')
     return acc
 
 
-def test_point_model(model, testing_set):
+def test_point_model(model, testing_set, output=True):
     model.eval()
     test_loss = 0
     correct = 0
@@ -93,25 +99,36 @@ def test_point_model(model, testing_set):
             correct += predicted_label.eq(test_labels.view_as(predicted_label)).sum().item()
     test_loss /= len(testing_set.dataset)
     acc = 100 * correct / len(testing_set.dataset)
-    print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")
+    if output:
+        print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")
     return acc
 
 
+def point_model_grid_search(range_nodes, batch_sizes, learning_rates):
+    nodes_min, nodes_max, nodes_step = range_nodes
+    batch_min, batch_max, batch_step = batch_sizes
+    lr_min, lr_max, lr_step = learning_rates
+    for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
+        for batch_size in range(batch_min, batch_max, batch_step):
+            for learning_rate in range(lr_min, lr_max, lr_step):
+                point_model = PointModel(num_nodes_in_hl)
+                training_set, testing_set = get_train_test(batch_size)
+                train_point_model(point_model, training_set, testing_set, learning_rate, output=False)
+                final_acc = test_point_model(point_model, testing_set, output=False)
+                model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
+                torch.save(point_model.state_dict(), f"models/point_model{num_nodes_in_hl}.pt")
+                with open('data/models_params.csv', 'a') as f:
+                    csv_writer = writer(f)
+                    csv_writer.writerow(model_features)
+                    f.close()
+
+
 def main():
-    num_nodes_in_hl = 0
-    batch_size = 100
-    learning_rate = 1
-    epochs = 1000
-    point_model = PointModel(num_nodes_in_hl)
-    training_set, testing_set = get_train_test(batch_size)
+    num_nodes_in_hl = (0, 31, 2)
+    batch_size = (1, 102, 10)
+    learning_rate = (.01, .11, .01)
 
-    train_point_model(point_model, training_set, testing_set, learning_rate, epochs)
-    final_acc = test_point_model(point_model, testing_set)
-    model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
-    torch.save(point_model.state_dict(), f"point_model{num_nodes_in_hl}.pt")
-
+    point_model_grid_search(num_nodes_in_hl, batch_size, learning_rate)
 
 if __name__ == "__main__":
     main()
-
-
