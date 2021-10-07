@@ -5,19 +5,25 @@ import torch.nn as nn
 class TCNModel(nn.Module):
     def __init__(self, kernel_size, num_hidden):
         super(TCNModel, self).__init__()
-        self.n_hidden = num_hidden
+        self.num_hidden = num_hidden
+        self.conv = nn.Conv1d(6, 6, kernel_size=kernel_size)
         if num_hidden == 0:
-            self.conv = nn.Conv1d(6, 25, kernel_size=kernel_size)
+            self.linear = nn.Linear(6, 25)
         else:
-            self.conv = nn.Conv1d(6, num_hidden, kernel_size=kernel_size)
-            self.linear = nn.Linear(num_hidden, 25)
+            self.linear1 = nn.Linear(6, num_hidden)
+            self.linear2 = nn.Linear(num_hidden, 25)
 
     def forward(self, x):
+        x = x.float()
         x = self.conv(x)
-        if self.num_hidden != 0:
+        x = torch.flatten(x, 1)
+        if self.num_hidden == 0:
             x = self.linear(x)
+        else:
+            x = self.linear1(x)
+            x = self.linear2(x)
         x = torch.sigmoid(x)
-        y_pred = nn.functional.log_softmax(x, dim=1)
-        return y_pred
+        y_predicted = nn.functional.log_softmax(x, dim=1)
+        return y_predicted
 
 
