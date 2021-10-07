@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 class ModelData:
     def __init__(self, file_name, time_steps=10, num_samples=1346):
-        self.data = pd.read_csv(file_name, sep=',', header=None).to_numpy()
+        self.data = pd.read_csv(file_name, sep=',', header=None).to_numpy().float()
         point_x, point_y = self.data_to_arrays(self.data)
         self.point_x = point_x
         self.point_y = np.argmax(point_y, axis=-1)
