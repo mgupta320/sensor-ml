@@ -116,7 +116,7 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, range_nodes
                 continue
             for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
                 for batch_size in range(batch_min, batch_max, batch_step):
-                    tcn_model = TCNModel(kernel_size, num_nodes_in_hl)
+                    tcn_model = TCNModel(kernel_size, time_steps, num_nodes_in_hl)
                     model_data.point_to_time(time_steps)
                     training_set, testing_set = get_train_test(model_data, batch_size)[1]
                     train_model(tcn_model, training_set, testing_set, learning_rate, output=False)
@@ -133,6 +133,7 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, range_nodes
 
 
 def main():
+
     time_step_range = (2, 31, 2)
     kernel_size = (2, 10, 1)
     num_nodes_in_hl = (0, 31, 2)
