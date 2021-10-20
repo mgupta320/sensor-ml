@@ -43,8 +43,8 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
         for train_data, train_labels in training_data:
             train_labels = train_labels.type(torch.LongTensor)
             optimizer.zero_grad()
-            output = model(train_data)
-            loss = criterion(output, train_labels)
+            output_labels = model(train_data)
+            loss = criterion(output_labels, train_labels)
             loss.backward()
             optimizer.step()
         if (epoch + 1) % acc_interval == 0:
@@ -66,14 +66,14 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
     return acc
 
 
-def test_model(model, testing_set, output=True):
+def test_model(model, testing_set, output_updates=True):
     model.eval()
     test_loss = 0
     correct = 0
     criterion = nn.NLLLoss(reduction='sum')
     with torch.no_grad():
         for test_data, test_labels in testing_set:
-            train_labels = train_labels.type(torch.LongTensor)
+            test_labels = test_labels.type(torch.LongTensor)
             output = model(test_data)
             loss = criterion(output, test_labels)
             test_loss += loss.item()
@@ -81,34 +81,31 @@ def test_model(model, testing_set, output=True):
             correct += predicted_label.eq(test_labels.view_as(predicted_label)).sum().item()
     test_loss /= len(testing_set.dataset)
     acc = 100 * correct / len(testing_set.dataset)
-    if output:
+    if output_updates:
         print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")
     return acc
 
 
-def point_model_grid_search(model_data, range_nodes, batch_sizes, learning_rate):
+def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate):
     nodes_min, nodes_max, nodes_step = range_nodes
-    batch_min, batch_max, batch_step = batch_sizes
     for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
-        for batch_size in range(batch_min, batch_max, batch_step):
-            point_model = PointModel(num_nodes_in_hl)
-            training_set, testing_set = get_train_test(model_data, batch_size)[0]
-            train_model(point_model, training_set, testing_set, learning_rate, output=False)
-            final_acc = test_model(point_model, testing_set, output=False)
-            model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
-            torch.save(point_model.state_dict(), f"models/saved_models/point_model_{num_nodes_in_hl}.pt")
+        point_model = PointModel(num_nodes_in_hl)
+        training_set, testing_set = get_train_test(model_data, batch_size)[0]
+        train_model(point_model, training_set, testing_set, learning_rate, output=False)
+        final_acc = test_model(point_model, testing_set, output_updates=False)
+        model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
+        torch.save(point_model.state_dict(), f"models/saved_models/point_model_{num_nodes_in_hl}.pt")
 
-            with open('data/point_models_params.csv', 'a') as f:
-                csv_writer = writer(f)
-                csv_writer.writerow(model_features)
-                f.close()
+        with open('data/point_models_params.csv', 'a') as f:
+            csv_writer = writer(f)
+            csv_writer.writerow(model_features)
+            f.close()
     return
 
 
-def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel_range, range_nodes, batch_sizes, learning_rate):
+def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel_range, range_nodes, batch_size, learning_rate):
     time_min, time_max, time_step_step = time_step_range
     nodes_min, nodes_max, nodes_step = range_nodes
-    batch_min, batch_max, batch_step = batch_sizes
     kernel_min, kernel_max, kernel_step = kernel_sizes
     cout_min, cout_max, cout_step = out_channel_range
     for time_steps in range(time_min, time_max, time_step_step):
@@ -117,40 +114,41 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
                 continue
             for out_channels in range(cout_min, cout_max, cout_step):
                 for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
-                    for batch_size in range(batch_min, batch_max, batch_step):
-                        tcn_model = TCNModel(kernel_size, time_steps, num_nodes_in_hl, out_channels)
-                        model_data.point_to_time(time_steps)
-                        training_set, testing_set = get_train_test(model_data, batch_size)[1]
-                        train_model(tcn_model, training_set, testing_set, learning_rate, output=False)
-                        final_acc = test_model(tcn_model, testing_set, output=False)
-                        model_features = (time_steps, kernel_size, out_channels, num_nodes_in_hl, batch_size, learning_rate, final_acc)
-                        torch.save(tcn_model.state_dict(),
-                                   f"models/saved_models/tcn_model_{num_nodes_in_hl}_{kernel_size}_{out_channels}_{time_steps}.pt")
+                    tcn_model = TCNModel(kernel_size, time_steps, num_nodes_in_hl, out_channels)
+                    model_data.point_to_time(time_steps)
+                    training_set, testing_set = get_train_test(model_data, batch_size)[1]
+                    train_model(tcn_model, training_set, testing_set, learning_rate, output=False)
+                    final_acc = test_model(tcn_model, testing_set, output_updates=False)
+                    model_features = (time_steps, kernel_size, out_channels, num_nodes_in_hl, batch_size, learning_rate, final_acc)
+                    torch.save(tcn_model.state_dict(),
+                               f"models/saved_models/tcn_model_{num_nodes_in_hl}_{kernel_size}_{out_channels}_{time_steps}.pt")
 
-                        with open('data/tcn_models_params.csv', 'a') as f:
-                            csv_writer = writer(f)
-                            csv_writer.writerow(model_features)
-                            f.close()
+                    with open('data/tcn_models_params.csv', 'a') as f:
+                        csv_writer = writer(f)
+                        csv_writer.writerow(model_features)
+                        f.close()
     return
 
 
 def main():
     time_step_range = (2, 31, 2)
-    kernel_size = (2, 10, 1)
+    kernel_size = (2, 11, 1)
     out_channels = (1, 13, 1)
     num_nodes_in_hl = (0, 31, 2)
-    batch_size = (1, 102, 10)
-    learning_rate = 1e-5
+    batch_size = 50
+    learning_rate = 1e-4
 
     model_data = ModelData("data/data.csv")
 
-    print("Beginning point by point model grid search\n")
+    print("Beginning point by point model grid search\n Please do not close window.")
     point_model_grid_search(model_data, num_nodes_in_hl, batch_size, learning_rate)
     print("Finished with point to point grid search \n")
 
     print("Beginning TCN model grid search\n")
     tcn_model_grid_search(model_data, time_step_range, kernel_size, out_channels, num_nodes_in_hl, batch_size, learning_rate)
     print("Finished with TCN model grid search\n")
+
+    print("Window can be closed.")
 
 
 if __name__ == "__main__":

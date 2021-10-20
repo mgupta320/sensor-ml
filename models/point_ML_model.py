@@ -14,7 +14,6 @@ class PointModel(nn.Module):
 
     def forward(self, x):
         x = x.float()
-        print(x.shape)
         if self.num_hidden == 0:
             x = self.linear(x)
         else:
