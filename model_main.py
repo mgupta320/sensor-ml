@@ -132,10 +132,10 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
 
 def main():
     time_step_range = (2, 31, 2)
-    kernel_size = (2, 11, 1)
-    out_channels = (1, 13, 1)
+    kernel_size = (2, 11, 2)
+    out_channels = (1, 15, 2)
     num_nodes_in_hl = (0, 31, 2)
-    batch_size = 50
+    batch_size = 100
     learning_rate = 1e-4
 
     model_data = ModelData("data/data.csv")
