@@ -136,7 +136,7 @@ def main():
     out_channels = (1, 15, 2)
     num_nodes_in_hl = (0, 31, 2)
     batch_size = 100
-    learning_rate = 1e-4
+    learning_rate = .05
 
     model_data = ModelData("data/data.csv")
 

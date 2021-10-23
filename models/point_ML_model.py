@@ -7,19 +7,21 @@ class PointModel(nn.Module):
         super(PointModel, self).__init__()
         self.num_hidden = num_hidden
         if num_hidden == 0:
-            self.linear = nn.Linear(6, 25)
+            self.model = nn.Sequential(
+                nn.Linear(6, 25),
+                nn.ReLU()
+            )
         else:
-            self.linear1 = nn.Linear(6, num_hidden)
-            self.linear2 = nn.Linear(num_hidden, 25)
+            self.model = nn.Sequential(
+                nn.Linear(6, num_hidden),
+                nn.Linear(num_hidden, num_hidden),
+                nn.Linear(num_hidden, 25),
+                nn.ReLU()
+            )
 
     def forward(self, x):
         x = x.float()
-        if self.num_hidden == 0:
-            x = self.linear(x)
-        else:
-            x = self.linear1(x)
-            x = self.linear2(x)
-        x = torch.sigmoid(x)
+        x = self.model(x)
         y_predicted = nn.functional.log_softmax(x, dim=1)
         return y_predicted
 
