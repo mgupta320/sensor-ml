@@ -144,9 +144,11 @@ def main():
     point_model_grid_search(model_data, num_nodes_in_hl, batch_size, learning_rate)
     print("Finished with point to point grid search \n")
 
+    '''
     print("Beginning TCN model grid search\n")
     tcn_model_grid_search(model_data, time_step_range, kernel_size, out_channels, num_nodes_in_hl, batch_size, learning_rate)
     print("Finished with TCN model grid search\n")
+    '''
 
     print("Window can be closed.")
 
