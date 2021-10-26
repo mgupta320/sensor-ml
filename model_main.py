@@ -38,6 +38,7 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
     criterion = nn.NLLLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     acc = 0
+    loss = 1e6
     for epoch in range(epochs):
         model.train()
         for train_data, train_labels in training_data:
@@ -50,9 +51,10 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
         if (epoch + 1) % acc_interval == 0:
             if output:
                 print(f'epoch: {epoch + 1}/{epochs}')
-            new_acc = test_model(model, testing_data, output)
-            diff = new_acc - acc
-            acc = new_acc
+            acc, new_loss = test_model(model, testing_data, output)
+            diff = .01 * (loss - new_loss)/loss
+            diff = abs(diff)
+            loss = new_loss
             if acc >= 99:
                 if output:
                     print('Training terminated early due to high accuracy\n')
@@ -63,7 +65,7 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
                 break
     if output:
         print(f'Training completed with accuracy of {acc}\n')
-    return acc
+    return acc, loss
 
 
 def test_model(model, testing_set, output_updates=True):
@@ -83,7 +85,7 @@ def test_model(model, testing_set, output_updates=True):
     acc = 100 * correct / len(testing_set.dataset)
     if output_updates:
         print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")
-    return acc
+    return acc, test_loss
 
 
 def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate):
@@ -92,8 +94,8 @@ def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate):
         point_model = PointModel(num_nodes_in_hl)
         training_set, testing_set = get_train_test(model_data, batch_size)[0]
         train_model(point_model, training_set, testing_set, learning_rate, output=False)
-        final_acc = test_model(point_model, testing_set, output_updates=False)
-        model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
+        final_acc, final_loss = test_model(point_model, testing_set, output_updates=False)
+        model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc, final_loss)
         torch.save(point_model.state_dict(), f"models/saved_models/point_model_{num_nodes_in_hl}.pt")
 
         with open('data/point_models_params.csv', 'a') as f:
@@ -117,11 +119,13 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
                     tcn_model = TCNModel(kernel_size, time_steps, num_nodes_in_hl, out_channels)
                     model_data.point_to_time(time_steps)
                     training_set, testing_set = get_train_test(model_data, batch_size)[1]
-                    train_model(tcn_model, training_set, testing_set, learning_rate, output=False)
-                    final_acc = test_model(tcn_model, testing_set, output_updates=False)
-                    model_features = (time_steps, kernel_size, out_channels, num_nodes_in_hl, batch_size, learning_rate, final_acc)
+                    train_model(tcn_model, training_set, testing_set, learning_rate, output=True)
+                    final_acc, final_loss = test_model(tcn_model, testing_set, output_updates=True)
+                    model_features = (time_steps, kernel_size, out_channels, num_nodes_in_hl, batch_size, learning_rate,
+                                      final_acc, final_loss)
                     torch.save(tcn_model.state_dict(),
-                               f"models/saved_models/tcn_model_{num_nodes_in_hl}_{kernel_size}_{out_channels}_{time_steps}.pt")
+                               f"models/saved_models/"
+                               f"tcn_model_{num_nodes_in_hl}_{kernel_size}_{out_channels}_{time_steps}.pt")
 
                     with open('data/tcn_models_params.csv', 'a') as f:
                         csv_writer = writer(f)
@@ -134,9 +138,9 @@ def main():
     time_step_range = (2, 31, 2)
     kernel_size = (2, 11, 2)
     out_channels = (1, 15, 2)
-    num_nodes_in_hl = (0, 31, 2)
+    num_nodes_in_hl = (2, 37, 2)
     batch_size = 100
-    learning_rate = .05
+    learning_rate = .0005
 
     model_data = ModelData("data/data.csv")
 
