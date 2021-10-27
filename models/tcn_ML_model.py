@@ -12,6 +12,7 @@ class TCNModel(nn.Module):
             nn.Conv1d(6, output_channels, kernel_size=kernel_size),
             nn.Flatten(),
             nn.Linear(num_flattened, num_hidden),
+            nn.Linear(num_hidden, num_hidden),
             nn.Linear(num_hidden, 25),
             nn.LogSoftmax(dim=1)
         )
