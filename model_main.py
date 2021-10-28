@@ -41,28 +41,30 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
     loss = 1e6
     for epoch in range(epochs):
         model.train()
-        for train_data, train_labels in training_data:
+        for batch, (train_data, train_labels) in enumerate(training_data):
             train_labels = train_labels.type(torch.LongTensor)
-            optimizer.zero_grad()
             output_labels = model(train_data)
+            optimizer.zero_grad()
             loss = criterion(output_labels, train_labels)
             loss.backward()
             optimizer.step()
-        if (epoch + 1) % acc_interval == 0:
+            if batch % acc_interval == 0 and output:
+                loss_val, current = loss.item(), batch * len(train_data)
+                print(f"loss: {loss_val:>5f}\t({current}/{len(training_data)})")
+
+        new_acc, new_loss = test_model(model, testing_data, output)
+        diff = new_acc- acc
+        diff = abs(diff)
+        acc = new_acc
+        loss = new_loss
+        if acc >= 99:
             if output:
-                print(f'epoch: {epoch + 1}/{epochs}')
-            acc, new_loss = test_model(model, testing_data, output)
-            diff = .01 * (loss - new_loss)/loss
-            diff = abs(diff)
-            loss = new_loss
-            if acc >= 99:
-                if output:
-                    print('Training terminated early due to high accuracy\n')
-                break
-            if diff < .001:
-                if output:
-                    print('Training terminated early due to diminishing returns\n')
-                break
+                print('Training terminated early due to high accuracy\n')
+            break
+        if diff < .001:
+            if output:
+                print('Training terminated early due to diminishing returns\n')
+            break
     if output:
         print(f'Training completed with accuracy of {acc}\n')
     return acc, loss
@@ -72,7 +74,7 @@ def test_model(model, testing_set, output_updates=True):
     model.eval()
     test_loss = 0
     correct = 0
-    criterion = nn.NLLLoss(reduction='sum')
+    criterion = nn.NLLLoss()
     with torch.no_grad():
         for test_data, test_labels in testing_set:
             test_labels = test_labels.type(torch.LongTensor)
@@ -81,7 +83,7 @@ def test_model(model, testing_set, output_updates=True):
             test_loss += loss.item()
             predicted_label = output.argmax(dim=1, keepdim=True)
             correct += predicted_label.eq(test_labels.view_as(predicted_label)).sum().item()
-    test_loss /= len(testing_set.dataset)
+    test_loss /= len(testing_set)
     acc = 100 * correct / len(testing_set.dataset)
     if output_updates:
         print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")

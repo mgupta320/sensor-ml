@@ -8,7 +8,9 @@ class PointModel(nn.Module):
         self.num_hidden = num_hidden
         self.model = nn.Sequential(
             nn.Linear(6, num_hidden),
+            nn.ReLU(),
             nn.Linear(num_hidden, num_hidden),
+            nn.ReLU(),
             nn.Linear(num_hidden, 25),
             nn.LogSoftmax(dim=1)
         )
