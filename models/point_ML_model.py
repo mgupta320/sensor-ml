@@ -11,8 +11,7 @@ class PointModel(nn.Module):
             nn.ReLU(),
             nn.Linear(num_hidden, num_hidden),
             nn.ReLU(),
-            nn.Linear(num_hidden, 25),
-            nn.LogSoftmax(dim=1)
+            nn.Linear(num_hidden, 25)
         )
 
     def forward(self, x):

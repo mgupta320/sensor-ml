@@ -35,28 +35,26 @@ def get_train_test(model_data, batch_size):
 def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interval=50, output=True):
     if output:
         print(f'Beginning training with {epochs} epochs at learning rate of {lr}\n')
-    criterion = nn.NLLLoss()
+    criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     acc = 0
-    loss = 1e6
     for epoch in range(epochs):
         model.train()
         for batch, (train_data, train_labels) in enumerate(training_data):
             train_labels = train_labels.type(torch.LongTensor)
             output_labels = model(train_data)
-            optimizer.zero_grad()
             loss = criterion(output_labels, train_labels)
             loss.backward()
             optimizer.step()
+            optimizer.zero_grad()
             if batch % acc_interval == 0 and output:
                 loss_val, current = loss.item(), batch * len(train_data)
                 print(f"loss: {loss_val:>5f}\t({current}/{len(training_data)})")
 
-        new_acc, new_loss = test_model(model, testing_data, output)
-        diff = new_acc- acc
+        new_acc = test_model(model, testing_data, output)
+        diff = new_acc - acc
         diff = abs(diff)
         acc = new_acc
-        loss = new_loss
         if acc >= 99:
             if output:
                 print('Training terminated early due to high accuracy\n')
@@ -67,27 +65,23 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
             break
     if output:
         print(f'Training completed with accuracy of {acc}\n')
-    return acc, loss
+    return acc
 
 
 def test_model(model, testing_set, output_updates=True):
     model.eval()
-    test_loss = 0
-    correct = 0
-    criterion = nn.NLLLoss()
+    correct, total = 0, 0
     with torch.no_grad():
         for test_data, test_labels in testing_set:
             test_labels = test_labels.type(torch.LongTensor)
             output = model(test_data)
-            loss = criterion(output, test_labels)
-            test_loss += loss.item()
             predicted_label = output.argmax(dim=1, keepdim=True)
             correct += predicted_label.eq(test_labels.view_as(predicted_label)).sum().item()
-    test_loss /= len(testing_set)
+            total += int(test_labels.shape[0])
     acc = 100 * correct / len(testing_set.dataset)
     if output_updates:
-        print(f"Average loss of {test_loss} and accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")
-    return acc, test_loss
+        print(f"Accuracy of {acc}% ({correct}/{len(testing_set.dataset)})\n")
+    return acc
 
 
 def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate):
@@ -96,11 +90,11 @@ def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate):
         point_model = PointModel(num_nodes_in_hl)
         training_set, testing_set = get_train_test(model_data, batch_size)[0]
         train_model(point_model, training_set, testing_set, learning_rate, output=False)
-        final_acc, final_loss = test_model(point_model, testing_set, output_updates=False)
-        model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc, final_loss)
+        final_acc = test_model(point_model, testing_set, output_updates=False)
+        model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
         torch.save(point_model.state_dict(), f"models/saved_models/point_model_{num_nodes_in_hl}.pt")
 
-        with open('data/point_models_params.csv', 'a') as f:
+        with open('data/point_models_params_1out.csv', 'a') as f:
             csv_writer = writer(f)
             csv_writer.writerow(model_features)
             f.close()
