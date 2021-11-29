@@ -32,7 +32,8 @@ def get_train_test(model_data, batch_size):
     return pair
 
 
-def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interval=50, output=True):
+def train_model(model_and_device, training_data, testing_data, lr, epochs=1000, acc_interval=50, output=True):
+    model, device = model_and_device
     if output:
         print(f'Beginning training with {epochs} epochs at learning rate of {lr}\n')
     criterion = nn.CrossEntropyLoss()
@@ -41,12 +42,15 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
     for epoch in range(epochs):
         model.train()
         for batch, (train_data, train_labels) in enumerate(training_data):
+            optimizer.zero_grad()
             train_labels = train_labels.type(torch.LongTensor)
-            output_labels = model(train_data)
-            loss = criterion(output_labels, train_labels)
+            model_input = train_data.to(device)
+            model_output = train_labels.to(device)
+            output_labels = model(model_input)
+            loss = criterion(output_labels, model_output)
             loss.backward()
             optimizer.step()
-            optimizer.zero_grad()
+
             if batch % acc_interval == 0 and output:
                 loss_val, current = loss.item(), batch * len(train_data)
                 print(f"loss: {loss_val:>5f}\t({current}/{len(training_data)})")
@@ -68,7 +72,8 @@ def train_model(model, training_data, testing_data, lr, epochs=1000, acc_interva
     return acc
 
 
-def test_model(model, testing_set, output_updates=True):
+def test_model(model_and_device, testing_set, output_updates=True):
+    model, device = model_and_device
     model.eval()
     correct, total = 0, 0
     with torch.no_grad():
@@ -87,13 +92,19 @@ def test_model(model, testing_set, output_updates=True):
 def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate):
     nodes_min, nodes_max, nodes_step = range_nodes
     for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         point_model = PointModel(num_nodes_in_hl)
+        if torch.cuda.device_count() > 1:
+            point_model = nn.parallel.DistributedDataParallel(point_model)
+        point_model.to(device)
+        model = (point_model, device)
         training_set, testing_set = get_train_test(model_data, batch_size)[0]
-        train_model(point_model, training_set, testing_set, learning_rate, output=False)
-        final_acc = test_model(point_model, testing_set, output_updates=False)
+        train_model(model, training_set, testing_set, learning_rate, output=False)
+
+        final_acc = test_model(model, testing_set, output_updates=False)
+
         model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
         torch.save(point_model.state_dict(), f"models/saved_models/point_model_{num_nodes_in_hl}.pt")
-
         with open('data/point_models_params_CEL.csv', 'a') as f:
             csv_writer = writer(f)
             csv_writer.writerow(model_features)
