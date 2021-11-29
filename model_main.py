@@ -94,7 +94,7 @@ def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate):
         model_features = (num_nodes_in_hl, batch_size, learning_rate, final_acc)
         torch.save(point_model.state_dict(), f"models/saved_models/point_model_{num_nodes_in_hl}.pt")
 
-        with open('data/point_models_params_1out.csv', 'a') as f:
+        with open('data/point_models_params_CEL.csv', 'a') as f:
             csv_writer = writer(f)
             csv_writer.writerow(model_features)
             f.close()
