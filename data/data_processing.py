@@ -1,7 +1,11 @@
+import torch
 import numpy as np
 import pandas as pd
 import pickle as pickle
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from torch.utils.data import TensorDataset, DataLoader
+from scipy.io import loadmat
 
 
 class ModelData:
@@ -50,3 +54,39 @@ class ModelData:
         return test_train_sets
 
 
+class ModelData2:
+    def __init__(self, file_name, time_steps=10, num_samples=1346, input_vars=6):
+        input_data = loadmat(file_name, verify_compressed_data_integrity=False)['data']
+        x = input_data[:, :, 0:input_vars]
+        y = input_data[:, :, input_vars]
+
+        standardizer = StandardScaler(with_mean=True, with_std=True)
+        x_standardized = np.zeros(np.shape(x))
+        for i in range(num_samples):
+            x_standardized[:, i, 0:input_vars] = standardizer.fit_transform(x[:, i, 0:input_vars])
+
+        self.x = x_standardized
+        self.y = y
+        self.training = None
+        self.testing = None
+        self.create_test_train()
+
+    def create_test_train(self, test_size=.33, batch_size=5, rand_seed=0):
+        data = self.x
+        labels = self.y
+
+        x_r, x_t, y_r, y_t = train_test_split(data, labels, test_size=test_size, random_state=rand_seed)
+
+        x_train = torch.from_numpy(x_r.astype(np.float32))
+        y_train = torch.from_numpy(y_r.astype(np.int64))
+        x_test = torch.from_numpy(x_t.astype(np.float32))
+        y_test = torch.from_numpy(y_t.astype(np.int64))
+
+        train = TensorDataset(x_train, y_train)
+        test = TensorDataset(x_test, y_test)
+
+        training = DataLoader(dataset=train, batch_size=batch_size, shuffle=True, num_workers=0)
+        testing = DataLoader(dataset=test, shuffle=True, num_workers=0)
+        self.training = training
+        self.testing = testing
+        return training, testing
