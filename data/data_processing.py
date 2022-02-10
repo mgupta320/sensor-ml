@@ -56,7 +56,7 @@ class ModelData:
 
 class ModelData2:
     def __init__(self, file_name, time_steps=10, num_samples=1346, input_vars=6):
-        input_data = loadmat(file_name, verify_compressed_data_integrity=False)['data']
+        input_data = loadmat(file_name, verify_compressed_data_integrity=False)['data6']
         x = input_data[:, :, 0:input_vars]
         y = input_data[:, :, input_vars]
 
@@ -71,11 +71,14 @@ class ModelData2:
         self.testing = None
         self.create_test_train()
 
-    def create_test_train(self, test_size=.33, batch_size=5, rand_seed=0):
+    def create_test_train(self, test_size=0, batch_size=5, rand_seed=0):
         data = self.x
         labels = self.y
 
-        x_r, x_t, y_r, y_t = train_test_split(data, labels, test_size=test_size, random_state=rand_seed)
+        if test_size == 0:
+            x_r, x_t, y_r, y_t = data, data, labels, labels
+        else:
+            x_r, x_t, y_r, y_t = train_test_split(data, labels, test_size=test_size, random_state=rand_seed)
 
         x_train = torch.from_numpy(x_r.astype(np.float32))
         y_train = torch.from_numpy(y_r.astype(np.int64))
