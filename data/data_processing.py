@@ -70,10 +70,17 @@ class ModelData2:
         self.training = None
         self.testing = None
         self.create_test_train()
+        self.x_time = None
+        self.y_time = None
+        self.create_time_series_data(time_steps)
 
-    def create_test_train(self, test_size=0, batch_size=5, rand_seed=0):
-        data = self.x
-        labels = self.y
+    def create_test_train(self, test_size=0, batch_size=5, tcn=False, rand_seed=0):
+        if not tcn:
+            data = self.x
+            labels = self.y
+        else:
+            data = self.x_time
+            labels = self.y_time
 
         if test_size == 0:
             x_r, x_t, y_r, y_t = data, data, labels, labels
@@ -93,3 +100,20 @@ class ModelData2:
         self.training = training
         self.testing = testing
         return training, testing
+
+    def create_time_series_data(self, time_steps):
+        point_data_shape = self.x.shape
+        time_x = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps), time_steps, point_data_shape[2]))
+        time_y = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps)))
+
+        for test in range(point_data_shape[0]):
+            for sample in range(point_data_shape[1] - time_steps):
+                time_series = self.x[test, sample:(sample + time_steps), :]
+                time_x[point_data_shape[0] * test + sample] = time_series
+            time_y[test * (point_data_shape[1] - time_steps):(test + 1) * (point_data_shape[1] - time_steps)] = self.y[test, 0]
+        time_x = np.transpose(time_x, (0, 2, 1))
+
+        self.x_time = time_x
+        self.y_time = time_y
+        return self.x_time, self.y_time
+
