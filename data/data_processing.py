@@ -103,15 +103,16 @@ class ModelData2:
 
     def create_time_series_data(self, time_steps):
         point_data_shape = self.x.shape
-        time_x = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps), time_steps, point_data_shape[2]))
+        time_x = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps), point_data_shape[2], time_steps))
         time_y = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps)))
 
         for test in range(point_data_shape[0]):
             for sample in range(point_data_shape[1] - time_steps):
                 time_series = self.x[test, sample:(sample + time_steps), :]
-                time_x[point_data_shape[0] * test + sample] = time_series
+                time_series = np.transpose(time_series)
+                index = test * (point_data_shape[1] - time_steps) + sample
+                time_x[index] = time_series
             time_y[test * (point_data_shape[1] - time_steps):(test + 1) * (point_data_shape[1] - time_steps)] = self.y[test, 0]
-        time_x = np.transpose(time_x, (0, 2, 1))
 
         self.x_time = time_x
         self.y_time = time_y

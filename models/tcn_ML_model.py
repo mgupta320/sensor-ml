@@ -3,25 +3,32 @@ import torch.nn as nn
 
 
 class TCNModel(nn.Module):
-    def __init__(self, kernel_size, time_steps, num_hidden, output_channels, input_size=6):
+    def __init__(self, kernel_size, time_steps, output_channels, input_size=6, num_conv_layers=2):
         super(TCNModel, self).__init__()
+        num_flattened = time_steps * output_channels
+        num_hidden = num_flattened + 1
         self.num_hidden = num_hidden
         self.time_steps = time_steps
-        num_flattened = (time_steps - (kernel_size - 1)) * output_channels
-        self.model = nn.Sequential(
-            nn.Conv1d(input_size, output_channels, kernel_size=kernel_size),
-            nn.Flatten(),
-            nn.Linear(num_flattened, num_hidden, bias=True),
-            nn.ReLU(),
-            nn.Linear(num_hidden, 5)
-        )
+        self.conv_layers = []
         self.classification = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(num_flattened, 5, bias=True),
             nn.Softmax(dim=-1)
         )
+        for i in range(num_conv_layers):
+            if i == 0:
+                in_channels = input_size
+            else:
+                in_channels = output_channels
+            self.conv_layers.append(nn.Sequential(
+                nn.Conv1d(in_channels, output_channels, kernel_size=kernel_size, padding=((kernel_size - 1)//2)),
+                nn.ReLU(),
+            ))
 
     def forward(self, x):
-        x = self.model(x)
-        output = self.classification(x)
-        return output
+        for layer in self.conv_layers:
+            x = layer(x)
+        x = self.classification(x)
+        return x
 
 

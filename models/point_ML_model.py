@@ -28,6 +28,7 @@ class PointModel(nn.Module):
         for layer in self.layers:
             x = layer(x)
         output = self.classification(x)
+        output = output.permute(0, 2, 1)
         return output
 
 
