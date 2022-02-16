@@ -10,12 +10,12 @@ from scipy.io import loadmat
 
 class ModelData:
     def __init__(self, file_name, time_steps=10, num_samples=1346):
-        self.data = pd.read_csv(file_name, sep=',', header=None).to_numpy()
+        self.data = pd.read_csv(file_name, sep=',', header=None).to_numpy().astype(float)
         labels_start = np.where(self.data[0] == 1)[0][0]
         point_x = self.data[:, :labels_start]
         point_y = self.data[:, labels_start:]
         self.point_x = point_x
-        self.point_y = np.argmax(point_y, axis=-1)
+        self.point_y = np.argmax(point_y, axis=-1).astype(int)
         self.time_x = None
         self.time_y = None
         self.time_steps = time_steps

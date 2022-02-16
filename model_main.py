@@ -49,14 +49,14 @@ def test_model(model, testing_set, tcn=False, print_updates=True):
     return acc
 
 
-def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate, print_updates=False):
+def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate, epochs=1000, print_updates=False):
     nodes_min, nodes_max, nodes_step = range_nodes
     for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
         model = PointModel(num_nodes_in_hl)
         if print_updates:
             print(f"Trying model with {num_nodes_in_hl} in hidden layer")
         training_set, testing_set = model_data.create_test_train(batch_size=batch_size)
-        train_model(model, training_set, testing_set, learning_rate, print_updates=print_updates)
+        train_model(model, training_set, testing_set, learning_rate, epochs=epochs, print_updates=print_updates)
 
         final_acc = test_model(model, testing_set, print_updates=print_updates)
 
@@ -71,7 +71,7 @@ def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate, 
     return
 
 
-def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel_range, range_conv_layers, batch_size, learning_rate, print_updates=False):
+def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel_range, range_conv_layers, batch_size, learning_rate, epochs=10, print_updates=False):
     time_min, time_max, time_step_step = time_step_range
     layers_min, layers_max, layers_step = range_conv_layers
     kernel_min, kernel_max, kernel_step = kernel_sizes
@@ -88,7 +88,7 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
                     tcn_model = TCNModel(kernel_size, time_steps, out_channels, num_conv_layers=num_conv_layers)
                     model_data.create_time_series_data(time_steps)
                     training_set, testing_set = model_data.create_test_train(batch_size=batch_size, tcn=True)
-                    train_model(tcn_model, training_set, testing_set, learning_rate, tcn=True, print_updates=print_updates)
+                    train_model(tcn_model, training_set, testing_set, learning_rate, epochs=epochs, tcn=True, print_updates=print_updates)
                     final_acc = test_model(tcn_model, testing_set, tcn=True, print_updates=print_updates)
                     model_features = (time_steps, kernel_size, out_channels, num_conv_layers, batch_size, learning_rate,
                                       final_acc)
@@ -104,21 +104,22 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
 
 
 def main():
-    time_step_range = (5, 20, 5)
-    kernel_size = (3, 11, 2)
-    out_channels = (5, 6, 1)
-    num_nodes_in_hl = (1, 21, 4)
-    num_conv_layers = (2, 5, 1)
-    batch_size = 120
-    learning_rate = .01
 
+    num_nodes_in_hl = (1, 30, 1)
+    batch_size = 1
+    learning_rate = .01
     model_data = ModelData2("data/data6.mat")
 
 
-    # print("Beginning point by point model grid search\n Please do not close window.")
-    # point_model_grid_search(model_data, num_nodes_in_hl, batch_size, learning_rate, print_updates=True)
-    # print("Finished with point to point grid search \n")
+    print("Beginning point by point model grid search\n Please do not close window.")
+    point_model_grid_search(model_data, num_nodes_in_hl, batch_size, learning_rate, print_updates=True)
+    print("Finished with point to point grid search \n")
 
+    time_step_range = (5, 25, 1)
+    kernel_size = (3, 11, 2)
+    out_channels = (5, 6, 1)
+    num_conv_layers = (1, 6, 1)
+    batch_size = 100
     print("Beginning TCN model grid search\n")
     tcn_model_grid_search(model_data, time_step_range, kernel_size, out_channels, num_conv_layers, batch_size, learning_rate, print_updates=True)
     print("Finished with TCN model grid search\n")
