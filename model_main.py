@@ -190,42 +190,44 @@ def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate, 
     return
 
 
-def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, batch_size, learning_rate, epochs=50,
+def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channels_range, batch_size, learning_rate, epochs=50,
                           print_updates=False):
     time_min, time_max, time_step_step = time_step_range
     kernel_min, kernel_max, kernel_step = kernel_sizes
+    out_min, out_max, out_step = out_channels_range
     measure_array = []
-    for time_steps in range(time_min, time_max, time_step_step):
-        for kernel_size in range(kernel_min, kernel_max, kernel_step):
-            if kernel_size > time_steps:
-                continue
-            if print_updates:
-                print(f"\n---------------Trying model with {time_steps} time steps and kernel size of {kernel_size}---------------")
+    for output_channels in range(out_min, out_max, out_step):
+        for time_steps in range(time_min, time_max, time_step_step):
+            for kernel_size in range(kernel_min, kernel_max, kernel_step):
+                if kernel_size > time_steps:
+                    continue
+                if print_updates:
+                    print(f"\n---------------Trying model with {time_steps} time steps and kernel size of {kernel_size}---------------")
 
-            model = TCNModel(kernel_size, time_steps)
-            model_data.create_time_series_data(time_steps)
-            final_acc, final_f1 = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, True,
-                                                  print_updates)
-            if print_updates:
-                print(
-                    f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {time_steps} time "
-                    f"steps and {kernel_size} kernel size-----------\n")
-            _, testing_set = model_data.create_test_train(test_size=0, batch_size=batch_size, tcn=True)
-            df_cm, _, _ = validate_model(model, testing_set, model_data.classes, tcn=True, print_updates=print_updates)
-            measurement = measure_model(model, model_data, tcn=True)
-            measure_array.append(measurement)
-            model_features = (time_steps, kernel_size, final_acc, final_f1)
-            plt.figure(figsize=(12, 7))
-            sn.heatmap(df_cm, annot=True)
-            plt.savefig(f'data/Graphs/tcn_{time_steps}_{kernel_size}.png')
-            plt.close()
-            torch.save(model.state_dict(),
-                       f"models/saved_models/"
-                       f"tcn_model_{kernel_size}_{time_steps}.pt")
-            with open('data/tcn_models_params.csv', 'a') as f:
-                csv_writer = writer(f)
-                csv_writer.writerow(model_features)
-                f.close()
+                model = TCNModel(kernel_size, time_steps)
+                model_data.create_time_series_data(time_steps)
+                final_acc, final_f1 = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, True,
+                                                      print_updates)
+                if print_updates:
+                    print(
+                        f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {time_steps} time "
+                        f"steps and {kernel_size} kernel size-----------\n")
+                _, testing_set = model_data.create_test_train(test_size=0, batch_size=batch_size, tcn=True)
+                df_cm, _, _ = validate_model(model, testing_set, model_data.classes, tcn=True, print_updates=print_updates)
+                measurement = measure_model(model, model_data, tcn=True)
+                measure_array.append(measurement)
+                model_features = (time_steps, kernel_size, output_channels, final_acc, final_f1)
+                plt.figure(figsize=(12, 7))
+                sn.heatmap(df_cm, annot=True)
+                plt.savefig(f'data/Graphs/tcn_{time_steps}_{kernel_size}.png')
+                plt.close()
+                torch.save(model.state_dict(),
+                           f"models/saved_models/"
+                           f"tcn_model_{kernel_size}_{time_steps}.pt")
+                with open('data/tcn_models_params.csv', 'a') as f:
+                    csv_writer = writer(f)
+                    csv_writer.writerow(model_features)
+                    f.close()
     measure_matrix = np.asarray(acc_buckets(measure_array, 10))
     mdic = {"tcn_data": measure_matrix}
     savemat("tcn_matrix.mat", mdic)
@@ -240,7 +242,7 @@ def main():
     epochs = 50
     model_data = ModelData2("data/data6.mat", classes)
     point_search = False
-    tcn_search = False
+    tcn_search = True
 
     if point_search:
         print("Beginning point by point model grid search\n Please do not close window.")
@@ -248,12 +250,13 @@ def main():
                                 print_updates=True)
         print("Finished with point to point grid search \n")
 
-    time_step_range = (3, 11, 1)
-    kernel_size = (3, 10, 2)
+    time_step_range = (2, 11, 2)
+    kernel_size = (2, 11, 2)
+    output_channels = (1, 7, 1)
     if tcn_search:
         print("Beginning TCN model grid search\n")
-        tcn_model_grid_search(model_data, time_step_range, kernel_size, batch_size, learning_rate, epochs=epochs,
-                              print_updates=True)
+        tcn_model_grid_search(model_data, time_step_range, kernel_size, output_channels, batch_size, learning_rate,
+                              epochs=epochs, print_updates=True)
         print("Finished with TCN model grid search\n")
 
     print("Window can be closed.")
