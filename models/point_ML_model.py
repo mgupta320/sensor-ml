@@ -21,14 +21,13 @@ class PointModel(nn.Module):
 
         self.classification = nn.Sequential(
             nn.Linear(num_hidden_nodes, 5),
-            nn.Softmax(dim=2)
+            nn.Softmax(dim=1)
             )
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
         output = self.classification(x)
-        output = output.permute(0, 2, 1)
         return output
 
 
