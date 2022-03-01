@@ -56,7 +56,7 @@ def test_model(model, testing_set, tcn=False, print_updates=True):
     acc = accuracy_score(out_true, out_pred)
     f1 = f1_score(out_true, out_pred, average='weighted')
     if print_updates:
-        print(f"Accuracy of {acc}%. F1 Score of {f1}")
+        print(f"Accuracy of {acc}%. F1 Score of {f1}\n")
     return acc, f1
 
 
@@ -202,9 +202,10 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
                 if kernel_size > time_steps:
                     continue
                 if print_updates:
-                    print(f"\n---------------Trying model with {time_steps} time steps and kernel size of {kernel_size}---------------")
+                    print(f"\n---------------Trying model with {output_channels} output channels, {time_steps} time "
+                          f"steps, and kernel size of {kernel_size}---------------")
 
-                model = TCNModel(kernel_size, time_steps)
+                model = TCNModel(kernel_size, time_steps, output_channels)
                 model_data.create_time_series_data(time_steps)
                 final_acc, final_f1 = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, True,
                                                       print_updates)
@@ -224,7 +225,7 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
                 torch.save(model.state_dict(),
                            f"models/saved_models/"
                            f"tcn_model_{kernel_size}_{time_steps}.pt")
-                with open('data/tcn_models_params.csv', 'a') as f:
+                with open('data/tcn_models_params_with_channels.csv', 'a') as f:
                     csv_writer = writer(f)
                     csv_writer.writerow(model_features)
                     f.close()
@@ -250,8 +251,8 @@ def main():
                                 print_updates=True)
         print("Finished with point to point grid search \n")
 
-    time_step_range = (2, 11, 2)
-    kernel_size = (2, 11, 2)
+    time_step_range = (2, 11, 1)
+    kernel_size = (2, 11, 1)
     output_channels = (1, 7, 1)
     if tcn_search:
         print("Beginning TCN model grid search\n")
