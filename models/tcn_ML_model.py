@@ -21,7 +21,7 @@ class TCNModel(nn.Module):
             else:
                 in_channels = output_channels
             self.layers.append(nn.Sequential(
-                nn.Conv1d(in_channels, output_channels, kernel_size=kernel_size, padding=((kernel_size - 1)//2)),
+                nn.Conv1d(in_channels, output_channels, kernel_size=kernel_size, padding='same'),
                 nn.ReLU(),
             ))
 
