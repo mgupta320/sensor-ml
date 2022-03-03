@@ -6,12 +6,23 @@ from torch.utils.data import TensorDataset, DataLoader
 from scipy.io import loadmat
 
 
-class ModelData2:
-    def __init__(self, file_name, classes, time_steps=10, num_samples=1346, input_vars=6):
-        input_data = loadmat(file_name, verify_compressed_data_integrity=False)['data6']
+class ModelDataContainer:
+    def __init__(self, file_name, matrix_name, classes, time_steps=10, num_samples=1346, input_vars=6):
+        """
+        ModelDataContainer initializer that creates container to handle data for model
+        :param file_name: string path to .mat matrix
+        :param matrix_name: string name of matrix in matlab
+        :param classes: tuple where each value is a string at its index value in target index
+        :param time_steps: number of time steps for TCN (can be changed)
+        :param num_samples: number of samples in each test
+        :param input_vars: number of input variables in each sample
+        """
+        # get data from matlab matrix and split into x and y data
+        input_data = loadmat(file_name, verify_compressed_data_integrity=False)[matrix_name]
         x = input_data[:, :, 0:input_vars]
         y = input_data[:, :, input_vars]
 
+        # standardize input data (necessary step for many ML classification applications)
         standardizer = StandardScaler(with_mean=True, with_std=True)
         x_standardized = np.zeros(np.shape(x))
         for i in range(num_samples):
@@ -21,18 +32,26 @@ class ModelData2:
         self.x = x_standardized.astype(np.float32)
         self.y = y.astype(np.int64)
         shape = self.x.shape
-        self.x_point = self.x.reshape((shape[0] * shape[1], shape[2]))
+        self.x_point = self.x.reshape((shape[0] * shape[1], shape[2]))  # squeeze all data into 2d matrix for ANN
         shape = self.y.shape
-        self.y_point = self.y.reshape((shape[0] * shape[1]))
+        self.y_point = self.y.reshape((shape[0] * shape[1])) # squeeze labels into 2d matrix for ANN
         self.training = None
         self.testing = None
-        self.create_test_train()
+        self.create_train_test()  # automatically create training and testing set with a 1/3 holdout and batch size of 5
         self.time_steps = time_steps
         self.x_time = None
         self.y_time = None
-        self.create_time_series_data(time_steps)
+        self.create_time_series_data(time_steps)  # format data for tcn use
 
-    def create_test_train(self, test_size=.33, batch_size=5, tcn=False):
+    def create_train_test(self, test_size=.33, batch_size=5, tcn=False):
+        """
+        Creates testing and training DataLoader for model training and testing
+        :param test_size: float where 0 <= testsize < 1, 0 results in testing set and training set being entire dataset
+        :param batch_size: int number of samples in each batch trained on before an optimization step
+        :param tcn: boolean of whether DataLoaders are for TCN or not
+        :return: tuple containing (DataLoader training_set, DataLoader testing_set)
+        """
+        # select point data for ANN and time series data for TCN
         if not tcn:
             data = self.x_point
             labels = self.y_point
@@ -60,6 +79,11 @@ class ModelData2:
         return training, testing
 
     def create_time_series_data(self, time_steps):
+        """
+        Create time series data for use in TCN
+        :param time_steps: int number of time steps needed for TCN
+        :return: tuple containing (np x, np y)
+        """
         self.time_steps = time_steps
         point_data_shape = self.x.shape
         time_x = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps), point_data_shape[2], time_steps))
@@ -79,6 +103,13 @@ class ModelData2:
         return self.x_time, self.y_time
 
     def create_k_fold_val(self, k, batch_size, tcn=False):
+        """
+        Create training and testing sets for k-fold cross validation
+        :param k: int number of fold for cross validation
+        :param batch_size: int number of samples in each batch trained on before an optimization step
+        :param tcn: boolean of whether DataLoaders are for TCN or not
+        :return: array of k tuples where each tuple contains (DataLoader training_set, DataLoader testing_set)
+        """
         if not tcn:
             data = self.x_point
             labels = self.y_point
