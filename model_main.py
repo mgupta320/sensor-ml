@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy.io import savemat
 
 
-def train_model(model, training_data, testing_data, lr, epochs=10, test_interval=0, tcn=False, print_updates=False):
+def train_model(model, training_data, testing_data, lr, epochs=10, test_interval=0, print_updates=False):
     """
     Contains the training loop for an ML model and returns final accuracy of model
     :param model: ML model made using PyTorch NN module
@@ -22,8 +22,7 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
     :param testing_data: DataLoader made from PyTorch DataLoader containing testing dataset
     :param lr: float value for learning rate of model
     :param epochs: int epochs training loop runs for
-    :param test_interval: int between 0 and batch_size * epochs, interval of iterations after which ML model must be tested
-    :param tcn: boolean of whether model is a TCN or not
+    :param test_interval: int between 0 and batch_size * epochs, interval of iterations after which ML model is tested
     :param print_updates: boolean of whether training loop should print updates to terminal for user
     :return: float acc
     """
@@ -43,7 +42,7 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
 
             if test_interval > 0 and (epoch * len(training_data) + batch + 1) % test_interval == 0:
                 # Test model when number of iterations have been reached
-                acc, f1 = test_model(model, testing_data, tcn=tcn, print_updates=False)
+                acc, f1 = test_model(model, testing_data, print_updates=False)
                 if print_updates:
                     print(f"Batch {batch + 1}/{len(training_data)} of the {epoch + 1} out of {epochs} epochs: "
                           f"accuracy of {acc}, f1 of {f1}")
@@ -55,12 +54,11 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
     return acc
 
 
-def test_model(model, testing_set, tcn=False, print_updates=True):
+def test_model(model, testing_set, print_updates=True):
     """
     Testing function that tests model and returns accuracy and f1 score of model and its predictions
     :param model: ML model made using PyTorch NN module
     :param testing_set: DataLoader made from PyTorch DataLoader containing testing dataset
-    :param tcn: boolean of whether model is a TCN or not
     :param print_updates: boolean of whether function should print updates to terminal for user
     :return: tuple containing float accuracy, float f1 score
     """
@@ -81,15 +79,13 @@ def test_model(model, testing_set, tcn=False, print_updates=True):
     return acc, f1
 
 
-def validate_model(model, validation_set, classes, tcn=False, print_updates=True):
+def validate_model(model, validation_set, classes):
     """
     Validates model against a validation set and builds necessary data for confusion matrix (only difference between
     this and testing is the confusion matrix
     :param model: ML model made using PyTorch NN module
     :param validation_set: DataLoader made from PyTorch DataLoader containing validation dataset
     :param classes: Tuple where each value is a string that matches with the target indexes
-    :param tcn: boolean of whether model is a TCN or not
-    :param print_updates: boolean of whether function should print updates to terminal for user
     :return: tuple containing pandas dataframe with confusion matrix data, float accuracy, float f1 score
     """
     model.eval()
@@ -157,8 +153,9 @@ def measure_model(model, model_data, tcn=False):
 def acc_buckets(data_array, bucket_size):
     """
     Used in conjuction with measure_model to average accuracy across several timesteps
-    :param data_array: array of containing accuracy of model across each timestep (can be constructed with measure_model)
-    :param bucket_size: int of how many time steps should be average together (ex. 10 => accuracy across every ten time steps averaged together)
+    :param data_array: array of containing accuracy of model across each timestep (constructed with measure_model)
+    :param bucket_size: int of how many time steps should be average together
+    (ex. 10 => accuracy across every ten time steps averaged together)
     :return: array of average accuracy of model for each section of timesteps
     """
     buckets_array = []
@@ -209,8 +206,8 @@ def k_fold_training(model, model_data, k, batch_size, lr, epochs=10, tcn=False, 
     for fold, (training_set, testing_set) in enumerate(cv_set):
         if print_updates:
             print(f"Beginning {fold + 1} fold out of {len(cv_set)}")
-        train_model(model, training_set, testing_set, lr, epochs=epochs, tcn=tcn, print_updates=print_updates)
-        acc, f1 = test_model(model, testing_set, tcn=tcn, print_updates=print_updates)
+        train_model(model, training_set, testing_set, lr, epochs=epochs, print_updates=print_updates)
+        acc, f1 = test_model(model, testing_set, print_updates=print_updates)
         k_acc.append(acc)
         k_f1.append(f1)
         reset_params(model)  # reset model weights to make sure previous testing does not influence results of next fold
@@ -245,10 +242,11 @@ def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate, 
                                               print_updates)
         if print_updates:
             print(
-                f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {num_nodes_in_hl} hidden nodes-----------\n")
+                f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {num_nodes_in_hl} "
+                f"hidden nodes-----------\n")
         _, testing_set = model_data.create_train_test(test_size=0, batch_size=batch_size, tcn=False)
         # get confusion matrix
-        df_cm, _, _ = validate_model(model, testing_set, model_data.classes, tcn=False, print_updates=print_updates)
+        df_cm, _, _ = validate_model(model, testing_set, model_data.classes)
         # measure model
         measurement = measure_model(model, model_data)
         measure_array.append(measurement)
@@ -316,12 +314,11 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
                                                       print_updates)
                 if print_updates:
                     print(
-                        f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {time_steps} time "
-                        f"steps and {kernel_size} kernel size-----------\n")
+                        f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {time_steps} "
+                        f"time steps and {kernel_size} kernel size-----------\n")
                 # get confusion matrix
                 _, testing_set = model_data.create_train_test(test_size=0, batch_size=batch_size, tcn=True)
-                df_cm, _, _ = validate_model(model, testing_set, model_data.classes, tcn=True,
-                                             print_updates=print_updates)
+                df_cm, _, _ = validate_model(model, testing_set, model_data.classes)
                 # measure model
                 measurement = measure_model(model, model_data, tcn=True)
                 measure_array.append(measurement)
