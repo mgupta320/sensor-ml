@@ -4,7 +4,7 @@
 /data/tcn_params_excel.xlsx
 /data/tcnmodelsparams.mat
 /data_analysis.py
-/data/bme_data_container.mat
+/data/DataContainers/bme_data_container.mat
 /data/pytorch_input_5.csv
 /data/bme_tcn_models_params_with_channels.csv
 /data/bme_ann_models_params.csv
