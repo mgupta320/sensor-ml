@@ -14,7 +14,6 @@ class ModelDataContainer:
         :param matrix_name: string name of matrix in matlab
         :param classes: tuple where each value is a string at its index value in target index
         :param time_steps: number of time steps for TCN (can be changed)
-        :param num_samples: number of samples in each test
         :param input_vars: number of input variables in each sample
         """
         # get data from matlab matrix and split into x and y data

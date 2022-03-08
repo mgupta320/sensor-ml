@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import savemat
+import time
 
 
 def train_model(model, training_data, testing_data, lr, epochs=10, test_interval=0, print_updates=False):
@@ -218,69 +219,99 @@ def k_fold_training(model, model_data, k, batch_size, lr, epochs=10, tcn=False, 
     return avg_acc, avg_f1
 
 
-def point_model_grid_search(model_data, range_nodes, batch_size, learning_rate, epochs=50, print_updates=False):
+def point_model_grid_search(model_data, input_size, range_nodes, range_layers, batch_size, learning_rate, epochs=50, print_updates=False,
+                            file_base_name=None, save_models=False):
     """
     Void function that conducts a grid search for an ANN model and constructs csv's of parameter results, confusion
     matrices, and model measurements
     :param model_data: ModelDataContainer constructed with data being used for model training
+    :param input_size: int number of input variables
     :param range_nodes: tuple containing range of nodes to be swept in same structure as python range function
+    (min, max, step)
+    :param range_layers: tuple containing range of hidden layers to be swept in same structure as python range function
     (min, max, step)
     :param batch_size: int number of samples in each batch trained on before an optimization step
     :param learning_rate: float value for learning rate of model
     :param epochs: int epochs training loop runs for
     :param print_updates: boolean of whether function should print updates to terminal for user
-    :return: NONE
+    :param file_base_name: string for base name for saved files made in function
+    :param save_models: boolean if modelss made during grid search should be saved
+    :return: None
     """
+    if file_base_name is None:
+        file_base_name = "ann"
     nodes_min, nodes_max, nodes_step = range_nodes
+    node_range = range(nodes_min, nodes_max, nodes_step)
+    layers_min, layers_max, layers_step = range_layers
+    layer_range = range(layers_min, layers_max, layers_step)
+    total_iter = len(node_range) * len(layer_range)
+    n_iter = 0
     measure_array = []
-    for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
-        model = PointModel(num_nodes_in_hl)
-        if print_updates:
-            print(f"\n--------------------Trying model with {num_nodes_in_hl} in hidden layer-----------------------")
-        # conduct kfold validation of model
-        final_acc, final_f1 = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, False,
-                                              print_updates)
-        if print_updates:
-            print(
-                f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {num_nodes_in_hl} "
-                f"hidden nodes-----------\n")
-        _, testing_set = model_data.create_train_test(test_size=0, batch_size=batch_size, tcn=False)
-        # get confusion matrix
-        df_cm, _, _ = validate_model(model, testing_set, model_data.classes)
-        # measure model
-        measurement = measure_model(model, model_data)
-        measure_array.append(measurement)
-        model_features = (num_nodes_in_hl, final_acc * 100, final_f1)
-        # construct confusion matrix for model performance
-        plt.figure(figsize=(12, 7))
-        sn.heatmap(df_cm, annot=True)
-        plt.savefig(f'data/Graphs/ann_{num_nodes_in_hl}.png')
-        plt.close()
-        if print_updates:
-            print(f"finished model of {num_nodes_in_hl}")
-        # save PyTorch model for later use
-        torch.save(model.state_dict(),
-                   f"models/saved_models/"
-                   f"point_model_{num_nodes_in_hl}.pt")
-        # add hyper parameter performance to csv
-        with open('data/point_models_params.csv', 'a') as f:
-            csv_writer = writer(f)
-            csv_writer.writerow(model_features)
-            f.close()
+
+    start_time = time.time()
+    for num_hid_layers in range(layers_min, layers_max, layers_step):
+        for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
+            model = PointModel(num_nodes_in_hl, num_hidden_layers=num_hid_layers, input_size=input_size)
+            if print_updates:
+                print(f"\n--------------------Trying model with {num_nodes_in_hl} nodes "
+                      f"in {num_hid_layers} hidden layer-----------------------")
+                n_iter += 1
+            # conduct kfold validation of model
+            final_acc, final_f1 = k_fold_training(model, model_data, 3, batch_size, learning_rate, epochs, False,
+                                                  print_updates)
+            if print_updates:
+                print(
+                    f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {num_nodes_in_hl} "
+                    f"hidden nodes-----------\n")
+            _, testing_set = model_data.create_train_test(test_size=0, batch_size=batch_size, tcn=False)
+            # get confusion matrix
+            df_cm, _, _ = validate_model(model, testing_set, model_data.classes)
+            # measure model
+            measurement = measure_model(model, model_data)
+            measure_array.append(measurement)
+            model_features = (num_hid_layers, num_nodes_in_hl, final_acc * 100, final_f1)
+            # construct confusion matrix for model performance
+            plt.figure(figsize=(12, 7))
+            sn.heatmap(df_cm, annot=True)
+            plt.savefig(f'data/Graphs/{file_base_name}_{num_nodes_in_hl}_{num_hid_layers}.png')
+            plt.close()
+            # save PyTorch model for later use
+            if save_models:
+                torch.save(model.state_dict(),
+                           f"models/saved_models/"
+                           f"{file_base_name}_model_{num_nodes_in_hl}_{num_hid_layers}.pt")
+            # add hyper parameter performance to csv
+            with open(f'data/{file_base_name}_models_params.csv', 'a') as f:
+                csv_writer = writer(f)
+                csv_writer.writerow(model_features)
+                f.close()
+            # provide time prediction
+            if print_updates:
+                print(f"finished model of {num_nodes_in_hl} with {num_hid_layers} hidden layers")
+                end_time = time.time()
+                time_taken = end_time - start_time
+                taken_hours = time_taken // 3600
+                taken_min = (time_taken % 3600) // 60
+                time_predicted = time_taken / n_iter * (total_iter - n_iter)
+                pred_hours = time_predicted // 3600
+                pred_min = (time_predicted % 3600) // 60
+                print(f"{taken_hours} hr {taken_min} min to try {n_iter} models. "
+                      f"Predicted {pred_hours} hr {pred_min} min left for grid search\n")
     # save time step accuracy measurements as matlab array
     measure_matrix = np.asarray(acc_buckets(measure_array, 10))
-    mdic = {"point_data": measure_matrix}
-    savemat("point_matrix.mat", mdic)
+    mdic = {f"{file_base_name}_data": measure_matrix}
+    savemat(f"{file_base_name}_matrix.mat", mdic)
     return
 
 
-def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channels_range, batch_size, learning_rate,
-                          epochs=50,
-                          print_updates=False):
+def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes, out_channels_range, conv_layers_range,
+                          batch_size, learning_rate, epochs=50, print_updates=False, file_base_name=None, save_models=False):
     """
     Void function that conducts a grid search for a TCN model and constructs csv's of parameter results, confusion
     matrices, and model measurements
+    :param conv_layers_range:
     :param model_data: ModelDataContainer constructed with data being used for model training
+    :param input_size: int number of input variables
     :param time_step_range: tuple containing range of time steps to be swept in same structure as python range function
     (min, max, step)
     :param kernel_sizes: tuple containing range of convolving kernel sizes to be swept in same structure as python range
@@ -291,90 +322,129 @@ def tcn_model_grid_search(model_data, time_step_range, kernel_sizes, out_channel
     :param learning_rate: float value for learning rate of model
     :param epochs: int epochs training loop runs for
     :param print_updates: boolean of whether function should print updates to terminal for user
+    :param file_base_name: string for base name for saved files made in function
+    :param save_models: boolean if modelss made during grid search should be saved
     :return: None
     """
+    if file_base_name is None:
+        file_base_name = "tcn"
     time_min, time_max, time_step_step = time_step_range
+    time_range = range(time_min, time_max, time_step_step)
     kernel_min, kernel_max, kernel_step = kernel_sizes
+    kernel_range = range(kernel_min, kernel_max, kernel_step)
     out_min, out_max, out_step = out_channels_range
-    measure_array = []
-    for output_channels in range(out_min, out_max, out_step):
-        for time_steps in range(time_min, time_max, time_step_step):
-            for kernel_size in range(kernel_min, kernel_max, kernel_step):
-                # kernel size cannot be greater than number of time steps for TCN model
-                if kernel_size > time_steps:
-                    continue
-                if print_updates:
-                    print(f"\n---------------Trying model with {output_channels} output channels, {time_steps} time "
-                          f"steps, and kernel size of {kernel_size}---------------")
+    out_range = range(out_min, out_max, out_step)
+    layers_min, layers_max, layers_step = conv_layers_range
+    layer_range = range(layers_min, layers_max, layers_step)
+    total_iter = len(time_range) * len(kernel_range) * len(out_range) * len(layer_range)
+    n_iter = 0
 
-                model = TCNModel(kernel_size, time_steps, output_channels)
-                model_data.create_time_series_data(time_steps)
-                # conduct kfold validation of model
-                final_acc, final_f1 = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, True,
-                                                      print_updates)
-                if print_updates:
-                    print(
-                        f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with {time_steps} "
-                        f"time steps and {kernel_size} kernel size-----------\n")
-                # get confusion matrix
-                _, testing_set = model_data.create_train_test(test_size=0, batch_size=batch_size, tcn=True)
-                df_cm, _, _ = validate_model(model, testing_set, model_data.classes)
-                # measure model
-                measurement = measure_model(model, model_data, tcn=True)
-                measure_array.append(measurement)
-                model_features = (time_steps, kernel_size, output_channels, final_acc, final_f1)
-                # construct confusion matrix for model performance
-                plt.figure(figsize=(12, 7))
-                sn.heatmap(df_cm, annot=True)
-                plt.savefig(f'data/Graphs/tcn_{time_steps}_{kernel_size}.png')
-                plt.close()
-                # save PyTorch model for later use
-                torch.save(model.state_dict(),
-                           f"models/saved_models/"
-                           f"tcn_model_{kernel_size}_{time_steps}.pt")
-                # add hyper parameter performance to csv
-                with open('data/tcn_models_params_with_channels.csv', 'a') as f:
-                    csv_writer = writer(f)
-                    csv_writer.writerow(model_features)
-                    f.close()
+    measure_array = []
+    start_time = time.time()
+    for num_conv_layers in layer_range:
+        for output_channels in out_range:
+            for time_steps in time_range:
+                for kernel_size in kernel_range:
+                    # kernel size cannot be greater than number of time steps for TCN model
+                    if kernel_size > time_steps:
+                        total_iter -= 1
+                        continue
+                    if print_updates:
+                        print(f"\n---------------Trying model with {output_channels} output channels and {num_conv_layers} layers, {time_steps} time "
+                              f"steps, and kernel size of {kernel_size}---------------")
+                        n_iter += 1
+
+                    model = TCNModel(kernel_size, time_steps, output_channels, num_conv_layers=num_conv_layers, input_size=input_size)
+                    model_data.create_time_series_data(time_steps)
+                    # conduct kfold validation of model
+                    final_acc, final_f1 = k_fold_training(model, model_data, 3, batch_size, learning_rate, epochs, True,
+                                                          print_updates)
+                    if print_updates:
+                        print(
+                            f"---------Average accuracy of {final_acc} and f1 of {final_f1} for "
+                            f"model with {output_channels} output channels and {num_conv_layers} layers, {time_steps} "
+                            f"time steps, and kernel size of {kernel_size}-----------\n")
+
+                    # get confusion matrix
+                    _, testing_set = model_data.create_train_test(test_size=0, batch_size=batch_size, tcn=True)
+                    df_cm, _, _ = validate_model(model, testing_set, model_data.classes)
+                    # measure model
+                    measurement = measure_model(model, model_data, tcn=True)
+                    measure_array.append(measurement)
+                    model_features = (time_steps, kernel_size, output_channels, num_conv_layers, final_acc, final_f1)
+                    # construct confusion matrix for model performance
+                    plt.figure(figsize=(12, 7))
+                    sn.heatmap(df_cm, annot=True)
+                    plt.savefig(f'data/Graphs/{file_base_name}_{time_steps}_{kernel_size}_{output_channels}_{num_conv_layers}.png')
+                    plt.close()
+                    # save PyTorch model for later use
+                    if save_models:
+                        torch.save(model.state_dict(),
+                                   f"models/saved_models/"
+                                   f"{file_base_name}_model_{time_steps}_{kernel_size}_{output_channels}_{num_conv_layers}.pt")
+                    # add hyper parameter performance to csv
+                    with open(f'data/{file_base_name}_models_params_with_channels.csv', 'a') as f:
+                        csv_writer = writer(f)
+                        csv_writer.writerow(model_features)
+                        f.close()
+                    # provide time prediction
+                    if print_updates:
+                        print(f"finished model with {output_channels} output channels and {num_conv_layers} layers,"
+                              f" {time_steps} time steps, and kernel size of {kernel_size}")
+                        end_time = time.time()
+                        time_taken = end_time - start_time
+                        taken_hours = time_taken // 3600
+                        taken_min = (time_taken % 3600) // 60
+                        time_predicted = time_taken / n_iter * (total_iter - n_iter)
+                        pred_hours = time_predicted // 3600
+                        pred_min = (time_predicted % 3600) // 60
+                        print(f"{taken_hours} hr {taken_min} min to try {n_iter} models. "
+                              f"Predicted {pred_hours} hr {pred_min} min left for grid search\n")
     # save time step accuracy measurements as matlab array
     measure_matrix = np.asarray(acc_buckets(measure_array, 10))
-    mdic = {"tcn_data": measure_matrix}
-    savemat("tcn_matrix.mat", mdic)
+    mdic = {f"{file_base_name}_data": measure_matrix}
+    savemat(f"{file_base_name}_matrix.mat", mdic)
     return
 
 
 def main():
     # Create data container for data needed for model
+    print("Loading in data")
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
-    model_data = ModelDataContainer("data/data6.mat", "data6", classes)
+    input_size = 9
+    model_data = ModelDataContainer("data/bme_data_container.mat", "bme_data_container", classes, num_samples=102649, input_vars=input_size)
+    print("Data loaded")
 
     # Needed for both grid searches
-    batch_size = 100
+    batch_size = 1000
     learning_rate = .01
-    epochs = 50
+    epochs = 15
 
     # ANN grid search param
-    num_nodes_in_hl = (1, 21, 1)
+    num_nodes_in_hl = (4, 25, 2)
+    num_hidden_layers = (1, 4, 1)
 
     # TCN grid search param
-    time_step_range = (2, 11, 1)
-    kernel_size = (2, 11, 1)
-    output_channels = (1, 7, 1)
+    time_step_range = (2, 21, 4)
+    kernel_size = (2, 21, 4)
+    output_channels = (5, 13, 3)
+    conv_layers_range = (1, 3, 1)
 
     point_search = False
+    file_point_name = "bme_ann"
     tcn_search = True
+    file_tcn_name = "bme_tcn"
 
     if point_search:
         print("Beginning point by point model grid search\n Please do not close window.")
-        point_model_grid_search(model_data, num_nodes_in_hl, batch_size, learning_rate, epochs=epochs,
-                                print_updates=True)
+        point_model_grid_search(model_data, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
+                                epochs=epochs, print_updates=True, file_base_name=file_point_name)
         print("Finished with point to point grid search \n")
 
     if tcn_search:
         print("Beginning TCN model grid search\n")
-        tcn_model_grid_search(model_data, time_step_range, kernel_size, output_channels, batch_size, learning_rate,
-                              epochs=epochs, print_updates=True)
+        tcn_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels, conv_layers_range,
+                              batch_size, learning_rate, epochs=epochs, print_updates=True, file_base_name=file_tcn_name)
         print("Finished with TCN model grid search\n")
 
     print("Window can be closed.")
