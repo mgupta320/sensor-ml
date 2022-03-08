@@ -295,7 +295,7 @@ def point_model_grid_search(model_data, input_size, range_nodes, range_layers, b
     # save time step accuracy measurements as matlab array
     measure_matrix = np.asarray(measure_array)
     mdic = {f"{file_base_name}_data": measure_matrix}
-    savemat(f"TimeMeasurement/{file_base_name}_matrix.mat", mdic)
+    savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
 
@@ -396,7 +396,7 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     # save time step accuracy measurements as matlab array
     measure_matrix = np.asarray(measure_array)
     mdic = {f"{file_base_name}_data": measure_matrix}
-    savemat(f"TimeMeasurement/{file_base_name}_matrix.mat", mdic)
+    savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
 
@@ -411,15 +411,15 @@ def main():
     # Needed for both grid searches
     batch_size = 100
     learning_rate = .01
-    epochs = 5
+    epochs = 50
 
     # ANN grid search param
-    num_nodes_in_hl = (5, 10, 1)
+    num_nodes_in_hl = (2, 22, 1)
     num_hidden_layers = (1, 2, 1)
 
     # TCN grid search param
-    time_step_range = (6, 11, 2)
-    kernel_size = (2, 11, 1)
+    time_step_range = (3, 13, 2)
+    kernel_size = (2, 13, 1)
     output_channels = (4, 7, 1)
     conv_layers_range = (1, 2, 1)
 

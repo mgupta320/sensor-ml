@@ -51,11 +51,13 @@ class ModelDataContainer:
         if not tcn:
             data = self.x_point
             labels = self.y_point
+            data = data.reshape((data.shape[0] * data.shape[1], data.shape[2]))
+            labels = labels.reshape((labels.shape[0] * labels.shape[1]))
         else:
             data = self.x_time
             labels = self.y_time
-        data = data.reshape((data.shape[0] * data.shape[1], data.shape[2]))
-        labels = labels.reshape((labels.shape[0] * labels.shape[1]))
+            data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
+            labels = labels.reshape((labels.shape[0] * labels.shape[1]))
 
         if test_size == 0:
             x_r, x_t, y_r, y_t = data, data, labels, labels
