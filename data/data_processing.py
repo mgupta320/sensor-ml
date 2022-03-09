@@ -7,16 +7,18 @@ from scipy.io import loadmat
 
 
 class ModelDataContainer:
-    def __init__(self, file_name, matrix_name, classes, time_steps=10, num_samples=1346, input_vars=6):
+    def __init__(self, file_name, classes, matrix_name=None, time_steps=10, num_samples=1346, input_vars=6):
         """
         ModelDataContainer initializer that creates container to handle data for model
         :param file_name: string path to .mat matrix
-        :param matrix_name: string name of matrix in matlab
         :param classes: tuple where each value is a string at its index value in target index
+        :param matrix_name: string name of matrix in matlab, defaults to None in which case matrix name is file name
         :param time_steps: number of time steps for TCN (can be changed)
         :param input_vars: number of input variables in each sample
         """
         # get data from matlab matrix and split into x and y data
+        if matrix_name is None:
+            matrix_name = file_name.split("/")[-1][:-4]
         input_data = loadmat(file_name, verify_compressed_data_integrity=False)[matrix_name]
         x = input_data[:, :, 0:input_vars]
         y = input_data[:, :, input_vars]
@@ -47,7 +49,7 @@ class ModelDataContainer:
         :param tcn: boolean of whether DataLoaders are for TCN or not
         :return: tuple containing (DataLoader training_set, DataLoader testing_set)
         """
-        # select point data for ANN and time series data for TCN
+        # select point data for ANN and time series data for TCN and combine test and sample dimensions
         if not tcn:
             data = self.x_point
             labels = self.y_point
@@ -59,6 +61,7 @@ class ModelDataContainer:
             data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
             labels = labels.reshape((labels.shape[0] * labels.shape[1]))
 
+        # if test size is 0, testing and training set are entire dataset
         if test_size == 0:
             x_r, x_t, y_r, y_t = data, data, labels, labels
         else:
@@ -108,15 +111,19 @@ class ModelDataContainer:
         :param tcn: boolean of whether DataLoaders are for TCN or not
         :return: array of k tuples where each tuple contains (DataLoader training_set, DataLoader testing_set)
         """
+        # collect data sets to be used
         if not tcn:
             data = self.x_point
             labels = self.y_point
         else:
             data = self.x_time
             labels = self.y_time
-        flat_val = 1 + int(tcn)
+        flat_val = 1 + int(tcn)  # Last dimension kept same in ANN, last 2 in TCN kept same
+
         kfold_sets = []
         for fold in range(k):
+            # each fold uses every kth point for testing and all other points for training to prevent leakage when
+            # measuring model performance vs time
             mask_train = [x for x in range(data.shape[1]) if (x + fold) % k != 0]
             mask_test = [x for x in range(data.shape[1]) if (x + fold) % k == 0]
             x_train = data[:, mask_train, :]
@@ -125,10 +132,14 @@ class ModelDataContainer:
             test_shape = x_test.shape
             y_train = labels[:, mask_train]
             y_test = labels[:, mask_test]
+
+            # test and sample dimensions combined
             x_train = torch.from_numpy(x_train.reshape(-1, *x_train.shape[-flat_val:]))
             y_train = torch.from_numpy(y_train.reshape((train_shape[0] * train_shape[1])))
             x_test = torch.from_numpy(x_test.reshape(-1, *x_test.shape[-flat_val:]))
             y_test = torch.from_numpy(y_test.reshape((test_shape[0] * test_shape[1])))
+
+            # create data loaders for training and testing with testing set still in chronological order
             train = TensorDataset(x_train, y_train)
             test = TensorDataset(x_test, y_test)
             training = DataLoader(dataset=train, batch_size=batch_size, shuffle=True, num_workers=0)

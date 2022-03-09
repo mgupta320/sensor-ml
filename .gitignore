@@ -1,12 +1,7 @@
 /models/saved_models/
 /data_analysis.m
 /data/Graphs/
-/data/tcn_params_excel.xlsx
-/data/tcnmodelsparams.mat
 /data_analysis.py
 /data/DataContainers/bme_data_container.mat
-/data/pytorch_input_5.csv
-/data/bme_tcn_models_params_with_channels.csv
-/data/bme_ann_models_params.csv
-/bme_tcn_matrix.mat
-/bme_ann_matrix.mat
+/data/ParameterData/
+/data/TimeMeasurement/
