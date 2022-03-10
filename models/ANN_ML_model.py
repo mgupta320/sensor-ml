@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class PointModel(nn.Module):
-    def __init__(self, num_hidden_nodes, num_hidden_layers=1, input_size=6):
+    def __init__(self, num_hidden_nodes, num_hidden_layers=1, input_size=6, num_outputs=5):
         super(PointModel, self).__init__()
         self.num_hidden_nodes = num_hidden_nodes
         self.layers = []
@@ -20,7 +20,7 @@ class PointModel(nn.Module):
                 ))
 
         self.classification = nn.Sequential(
-            nn.Linear(num_hidden_nodes, 5),
+            nn.Linear(num_hidden_nodes, num_outputs),
             nn.Softmax(dim=1)
             )
 

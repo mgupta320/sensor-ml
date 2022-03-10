@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 
-class TCNModel(nn.Module):
-    def __init__(self, kernel_size, time_steps, output_channels=6, input_size=6, num_conv_layers=1):
-        super(TCNModel, self).__init__()
+class Conv1D_Model(nn.Module):
+    def __init__(self, kernel_size, time_steps, output_channels=6, input_size=6, num_conv_layers=1, num_outputs=5):
+        super(Conv1D_Model, self).__init__()
         num_flattened = time_steps * output_channels
         num_hidden = num_flattened + 1
         self.num_hidden = num_hidden
@@ -12,7 +12,7 @@ class TCNModel(nn.Module):
         self.layers = []
         self.classification = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(num_flattened, 5, bias=True),
+            nn.Linear(num_flattened, num_outputs, bias=True),
             nn.Softmax(dim=-1)
         )
         for i in range(num_conv_layers):

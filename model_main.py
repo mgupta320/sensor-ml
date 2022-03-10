@@ -3,8 +3,9 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from data.data_processing import ModelDataContainer
 from csv import writer
-from models.point_ML_model import PointModel
-from models.tcn_ML_model import TCNModel
+from models.ANN_ML_model import PointModel
+from models.Conv1D_ML_model import Conv1D_Model
+from models.TCN_model import TCN_Model
 
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 import seaborn as sn
@@ -108,13 +109,12 @@ def validate_model(model, validation_set, classes):
     return df_cm, acc, f1
 
 
-def measure_model(model, model_data, data_loader, tcn=False):
+def measure_model(model, model_data, data_loader):
     """
     Measures average accuracy of model at each time step
     :param model: ML model made using PyTorch NN module
     :param model_data: ModelDataContainer constructed with data being measured
     :param data_loader: data loader from testing set, must be 2d in testing and then chronological order
-    :param tcn: boolean of whether model is a TCN or not
     :return: An array containing the average accuracy of the model at each timestep
     """
     model.eval()
@@ -221,8 +221,8 @@ def k_fold_training(model, model_data, k, batch_size, lr, epochs=10, tcn=False, 
     return avg_acc, avg_f1, avg_acc_array
 
 
-def point_model_grid_search(model_data, input_size, range_nodes, range_layers, batch_size, learning_rate, epochs=50,
-                            print_updates=False, file_base_name=None, make_conf_mat=False, save_models=False):
+def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, batch_size, learning_rate, epochs=50,
+                          print_updates=False, file_base_name=None, make_conf_mat=False, save_models=False):
     """
     Void function that conducts a grid search for an ANN model and constructs csv's of parameter results, confusion
     matrices, and model measurements
@@ -314,13 +314,12 @@ def point_model_grid_search(model_data, input_size, range_nodes, range_layers, b
     return
 
 
-def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes, out_channels_range, conv_layers_range,
-                          batch_size, learning_rate, epochs=50, print_updates=False, file_base_name=None,
-                          make_conf_mat=False, save_models=False):
+def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_sizes, out_channels_range, conv_layers_range,
+                             batch_size, learning_rate, epochs=50, print_updates=False, file_base_name=None,
+                             make_conf_mat=False, save_models=False):
     """
-    Void function that conducts a grid search for a TCN model and constructs csv's of parameter results, confusion
+    Void function that conducts a grid search for a 1D CNN model and constructs csv's of parameter results, confusion
     matrices, and model measurements
-    :param conv_layers_range:
     :param model_data: ModelDataContainer constructed with data being used for model training
     :param input_size: int number of input variables
     :param time_step_range: tuple containing range of time steps to be swept in same structure as python range function
@@ -328,6 +327,8 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     :param kernel_sizes: tuple containing range of convolving kernel sizes to be swept in same structure as python range
     function (min, max, step)
     :param out_channels_range: tuple containing range of output channels to be swept in same structure as python range
+    function (min, max, step)
+    :param conv_layers_range: tuple containing range of convolving layers to be swept in same structure as python range
     function (min, max, step)
     :param batch_size: int number of samples in each batch trained on before an optimization step
     :param learning_rate: float value for learning rate of model
@@ -339,7 +340,7 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     :return: None
     """
     if file_base_name is None:
-        file_base_name = "tcn"
+        file_base_name = "conv1d"
 
     time_min, time_max, time_step_step = time_step_range
     time_range = range(time_min, time_max, time_step_step)
@@ -362,7 +363,7 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
         for output_channels in out_range:
             for time_steps in time_range:
                 for kernel_size in kernel_range:
-                    # kernel size cannot be greater than number of time steps for TCN model
+                    # kernel size cannot be greater than number of time steps for 1DConv model
                     if kernel_size > time_steps:
                         continue
                     if print_updates:
@@ -370,19 +371,26 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                               f"steps, and kernel size of {kernel_size}---------------")
                         n_iter += 1
 
-                    model = TCNModel(kernel_size, time_steps, output_channels, num_conv_layers=num_conv_layers, input_size=input_size)
+                    model = Conv1D_Model(kernel_size, time_steps, output_channels, num_conv_layers=num_conv_layers,
+                                         input_size=input_size)
                     model_data.create_time_series_data(time_steps)
                     # conduct kfold validation of model
                     final_acc, final_f1, measurement = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, True,
                                                           print_updates)
                     measure_array.append(measurement)
-                    model_features = (time_steps, kernel_size, output_channels, num_conv_layers, final_acc, final_f1)
+                    model_features = (num_conv_layers, output_channels, time_steps, kernel_size, final_acc, final_f1)
 
                     if print_updates:
                         print(
                             f"---------Average accuracy of {final_acc} and f1 of {final_f1} for "
                             f"model with {output_channels} output channels and {num_conv_layers} layers, {time_steps} "
                             f"time steps, and kernel size of {kernel_size}-----------\n")
+
+                    # add hyper parameter performance to csv
+                    with open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a') as f:
+                        csv_writer = writer(f)
+                        csv_writer.writerow(model_features)
+                        f.close()
 
                     if make_conf_mat:
                         # get confusion matrix
@@ -399,12 +407,6 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                         torch.save(model.state_dict(),
                                    f"models/saved_models/"
                                    f"{file_base_name}_model_{time_steps}_{kernel_size}_{output_channels}_{num_conv_layers}.pt")
-
-                    # add hyper parameter performance to csv
-                    with open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a') as f:
-                        csv_writer = writer(f)
-                        csv_writer.writerow(model_features)
-                        f.close()
 
                     # provide time prediction
                     if print_updates:
@@ -428,6 +430,127 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     return
 
 
+def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes, filter_channel_range, dil_base_range,
+                          batch_size, learning_rate, epochs=50, print_updates=False, file_base_name=None,
+                          make_conf_mat=False, save_models=False):
+    """
+    Void function that conducts a grid search for a TCN model and constructs csv's of parameter results, confusion
+    matrices, and model measurements
+    :param model_data: ModelDataContainer constructed with data being used for model training
+    :param input_size: int number of input variables
+    :param time_step_range: tuple containing range of time steps to be swept in same structure as python range function
+    (min, max, step)
+    :param kernel_sizes: tuple containing range of convolving kernel sizes to be swept in same structure as python range
+    function (min, max, step)
+    :param filter_channel_range: tuple containing range of number of filter channels to be swept in same structure as
+    python range function (min, max, step)
+    :param dil_base_range: tuple containing range of dilation bases to be swept in same structure as python range
+    function (min, max, step)
+    :param batch_size: int number of samples in each batch trained on before an optimization step
+    :param learning_rate: float value for learning rate of model
+    :param epochs: int epochs training loop runs for
+    :param print_updates: boolean of whether function should print updates to terminal for user
+    :param file_base_name: string for base name for saved files made in function
+    :param make_conf_mat: boolean if confusion matrix should be made for models
+    :param save_models: boolean if models made during grid search should be saved
+    :return: None
+    """
+    if file_base_name is None:
+        file_base_name = "tcn"
+
+    num_outputs = len(model_data.classes)
+    time_min, time_max, time_step_step = time_step_range
+    time_range = range(time_min, time_max, time_step_step)
+    kernel_min, kernel_max, kernel_step = kernel_sizes
+    kernel_range = range(kernel_min, kernel_max, kernel_step)
+    filter_min, filter_max, filter_step_step = filter_channel_range
+    filter_range = range(filter_min, filter_max, filter_step_step)
+    dil_min, dil_max, dil_step = dil_base_range
+    dilation_range = range(dil_min, dil_max, dil_step)
+    n_iter = 0
+    total_iter = len(time_range) * len(kernel_range) * len(filter_range) * len(dilation_range)
+    for dilation in dilation_range:
+        for time_steps in time_range:
+            for kernel_size in kernel_range:
+                if kernel_size > time_steps or kernel_size < dilation:
+                    total_iter -= 1
+
+    measure_array = []
+    start_time = time.time()
+    for dilation in dilation_range:
+        for filter_size in filter_range:
+            for time_steps in time_range:
+                for kernel_size in kernel_range:
+                    if kernel_size > time_steps or kernel_size < dilation:
+                        continue
+
+                    if print_updates:
+                        print(f"\n---------------Trying model with {filter_size} filter channels and {dilation} "
+                              f"dilation base, {time_steps} time steps, and kernel size of {kernel_size}--------------")
+                        n_iter += 1
+
+                    model = TCN_Model(kernel_size, time_steps, input_size, num_outputs, filter_size,
+                                      dilation_base=dilation)
+                    model_data.create_time_series_data(time_steps)
+                    # conduct kfold validation of model
+                    final_acc, final_f1, measurement = k_fold_training(model, model_data, 5, batch_size, learning_rate,
+                                                                       epochs, True,
+                                                                       print_updates)
+                    measure_array.append(measurement)
+                    model_features = (dilation, filter_size, time_steps, kernel_size, final_acc, final_f1)
+
+                    if print_updates:
+                        print(
+                            f"---------Average accuracy of {final_acc} and f1 of {final_f1} for model with"
+                            f" {filter_size} filter channels and {dilation} dilation base, {time_steps} time steps, "
+                            f"and kernel size of {kernel_size}-----------\n")
+
+                    # add hyper parameter performance to csv
+                    with open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a') as f:
+                        csv_writer = writer(f)
+                        csv_writer.writerow(model_features)
+                        f.close()
+
+                    if make_conf_mat:
+                        # get confusion matrix
+                        _, testing_set = model_data.create_train_test(test_size=0, batch_size=batch_size, tcn=True)
+                        df_cm, _, _ = validate_model(model, testing_set, model_data.classes)
+                        # construct confusion matrix for model performance
+                        plt.figure(figsize=(12, 7))
+                        sn.heatmap(df_cm, annot=True)
+                        plt.savefig(
+                            f'data/Graphs/{file_base_name}_{time_steps}_{kernel_size}_{filter_size}_{dilation}.png')
+                        plt.close()
+
+                    # save PyTorch model for later use
+                    if save_models:
+                        torch.save(model.state_dict(),
+                                   f"models/saved_models/"
+                                   f"{file_base_name}_model_{time_steps}_{kernel_size}_{filter_size}_{dilation}.pt")
+
+                    # provide time prediction
+                    if print_updates:
+                        print(f"finished model with {filter_size} filter channels and {dilation} dilation base,"
+                              f" {time_steps} time steps, and kernel size of {kernel_size}")
+                        end_time = time.time()
+                        time_taken = end_time - start_time
+                        taken_hours = time_taken // 3600
+                        taken_min = (time_taken % 3600) // 60
+                        time_predicted = time_taken / n_iter * (total_iter - n_iter)
+                        pred_hours = time_predicted // 3600
+                        pred_min = (time_predicted % 3600) // 60
+                        print(f"{taken_hours} hr {taken_min} min to try {n_iter} models. "
+                              f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
+                              f"models in grid search\n")
+
+                    # save time step accuracy measurements as matlab array
+                measure_matrix = np.asarray(measure_array)
+                mdic = {f"{file_base_name}_data": measure_matrix}
+                savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
+                return
+
+
+
 def main():
     # Create data container for data needed for model
     print("Loading in data")
@@ -447,7 +570,7 @@ def main():
     num_nodes_in_hl = (5, 25, 2)
     num_hidden_layers = (1, 2, 1)
 
-    # TCN grid search param
+    # Conv1D grid search param
     time_step_range = (3, 13, 2)
     kernel_size = (2, 13, 1)
     output_channels = (4, 7, 1)
@@ -455,20 +578,20 @@ def main():
 
     point_search = False
     file_point_name = "fixed_ann_1c"
-    tcn_search = True
-    file_tcn_name = "fixed_tcn_1c"
+    conv1d_search = True
+    file_conv_name = "fixed_conv1d_1c"
 
     if point_search:
         print("Beginning point by point model grid search\n Please do not close window.")
-        point_model_grid_search(model_data, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
-                                epochs=epochs, print_updates=True, file_base_name=file_point_name)
+        ann_model_grid_search(model_data, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
+                              epochs=epochs, print_updates=True, file_base_name=file_point_name)
         print("Finished with point to point grid search \n")
 
-    if tcn_search:
-        print("Beginning TCN model grid search\n")
-        tcn_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels, conv_layers_range,
-                              batch_size, learning_rate, epochs=epochs, print_updates=True, file_base_name=file_tcn_name)
-        print("Finished with TCN model grid search\n")
+    if conv1d_search:
+        print("Beginning Conv1D model grid search\n")
+        conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels, conv_layers_range,
+                                 batch_size, learning_rate, epochs=epochs, print_updates=True, file_base_name=file_conv_name)
+        print("Finished with Conv1D model grid search\n")
 
     print("Window can be closed.")
 
