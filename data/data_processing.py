@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset, DataLoader
 from scipy.io import loadmat
@@ -31,6 +31,7 @@ class ModelDataContainer:
 
         self.classes = classes
         self.x = x_standardized.astype(np.float32)
+        # self.x = x.astype(np.float32) for raw data
         self.y = y.astype(np.int64)
         self.x_point = self.x
         self.y_point = self.y

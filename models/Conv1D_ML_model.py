@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils import weight_norm
 
 
 class Conv1D_Model(nn.Module):
@@ -21,7 +22,7 @@ class Conv1D_Model(nn.Module):
             else:
                 in_channels = output_channels
             self.layers.append(nn.Sequential(
-                nn.Conv1d(in_channels, output_channels, kernel_size=kernel_size, padding='same'),
+                weight_norm(nn.Conv1d(in_channels, output_channels, kernel_size=kernel_size, padding='same')),
                 nn.ReLU(),
             ))
 
@@ -30,5 +31,14 @@ class Conv1D_Model(nn.Module):
             x = layer(x)
         x = self.classification(x)
         return x
+
+    def reset_params(self):
+        for sequential in self.layers:
+            for layer in sequential:
+                if hasattr(layer, "reset_parameters"):
+                    layer.reset_parameters()
+        for layer in self.classification:
+            if hasattr(layer, "reset_parameters"):
+                layer.reset_parameters()
 
 

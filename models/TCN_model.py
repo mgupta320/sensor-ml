@@ -4,22 +4,35 @@ from torch.nn.utils import weight_norm
 import math
 
 
+class LeftPad(nn.Module):
+    def __init__(self, padding):
+        super(LeftPad, self).__init__()
+        self.padding = padding
+
+    def forward(self, x):
+        return x[:, :, :-self.padding].contiguous()
+
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, dilation, padding, drop):
         super(ResidualBlock, self).__init__()
-        pad = (padding, 0)
         layers = []
         for i in range(2):
-            self.layers.append(weight_norm(nn.Conv1d(in_channels, out_channels, kernel_size, padding=pad, dilation=dilation)))
-            self.layers.append(nn.ReLU())
-            self.layers.append(nn.Dropout(drop))
+            if i == 1:
+                in_channels = out_channels
+            layers.append(weight_norm(
+                nn.Conv1d(in_channels, out_channels, kernel_size, padding=padding, dilation=dilation)))
+            layers.append(LeftPad(padding))
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout(drop))
         if in_channels != out_channels:
-            self.layers.append(nn.Conv1d(in_channels, out_channels, kernel_size=1))
-            self.layers.append(nn.ReLU())
+            layers.append(nn.Conv1d(in_channels, out_channels, kernel_size=1))
+            layers.append(nn.ReLU())
         self.block = nn.Sequential(*layers)
 
     def forward(self, x):
         x = self.block(x)
+        return x
 
 
 class TCN_Model(nn.Module):
@@ -49,3 +62,11 @@ class TCN_Model(nn.Module):
         x = self.classification(x)
         return x
 
+    def reset_params(self):
+        for block in self.layers:
+            for layer in block.block:
+                if hasattr(layer, "reset_parameters"):
+                    layer.reset_parameters()
+        for layer in self.classification:
+            if hasattr(layer, "reset_parameters"):
+                layer.reset_parameters()

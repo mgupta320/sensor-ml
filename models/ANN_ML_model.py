@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+from torch.nn.utils import weight_norm
 
 class PointModel(nn.Module):
     def __init__(self, num_hidden_nodes, num_hidden_layers=1, input_size=6, num_outputs=5):
@@ -15,7 +15,7 @@ class PointModel(nn.Module):
                 in_size = num_hidden_nodes
             out_size = num_hidden_nodes
             self.layers.append(nn.Sequential(
-                nn.Linear(in_features=in_size, out_features=out_size, bias=True),
+                weight_norm(nn.Linear(in_features=in_size, out_features=out_size, bias=True)),
                 nn.ReLU()
                 ))
 
@@ -29,5 +29,15 @@ class PointModel(nn.Module):
             x = layer(x)
         output = self.classification(x)
         return output
+
+    def reset_params(self):
+        self.eval()
+        for sequential in self.layers:
+            for layer in sequential:
+                if hasattr(layer, "reset_parameters"):
+                    layer.reset_parameters()
+        for layer in self.classification:
+            if hasattr(layer, "reset_parameters"):
+                layer.reset_parameters()
 
 

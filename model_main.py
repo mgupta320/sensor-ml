@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
 from data.data_processing import ModelDataContainer
 from csv import writer
 from models.ANN_ML_model import PointModel
@@ -16,7 +15,7 @@ from scipy.io import savemat
 import time
 
 
-def train_model(model, training_data, testing_data, lr, epochs=10, test_interval=0, print_updates=False):
+def train_model(model, training_data, testing_data, lr, epochs=10, test_interval=10, print_updates=False):
     """
     Contains the training loop for an ML model and returns final accuracy of model
     :param model: ML model made using PyTorch NN module
@@ -31,23 +30,25 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
     if print_updates:
         print(f'Beginning training with {epochs} epochs at learning rate of {lr}')
     criterion = nn.CrossEntropyLoss()  # Loss function for model
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Model optimization function
+    optimizer = torch.optim.NAdam(model.parameters(), lr=lr)  # Model optimization function
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, epochs//10)
     acc = 0
+    loss = None
     for epoch in range(epochs):
         model.train()
         for batch, (train_data, train_labels) in enumerate(training_data):
+            optimizer.zero_grad()
             output_labels = model(train_data)
             loss = criterion(output_labels, train_labels)
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        if test_interval > 0 and (epoch + 1) % test_interval == 0:
+            # Test model when number of iterations have been reached
+            acc, f1 = test_model(model, testing_data, print_updates=False)
+            if print_updates:
+                print(f"{epoch + 1} out of {epochs} epochs: accuracy of {acc}, f1 of {f1}")
+        lr_scheduler.step(epoch)
 
-            if test_interval > 0 and (epoch * len(training_data) + batch + 1) % test_interval == 0:
-                # Test model when number of iterations have been reached
-                acc, f1 = test_model(model, testing_data, print_updates=False)
-                if print_updates:
-                    print(f"Batch {batch + 1}/{len(training_data)} of the {epoch + 1} out of {epochs} epochs: "
-                          f"accuracy of {acc}, f1 of {f1}")
     if print_updates:
         update = "Training completed"
         if test_interval:
@@ -165,24 +166,6 @@ def acc_buckets(data_array, bucket_size):
     return buckets_array
 
 
-def reset_params(model):
-    """
-    Void function that resets parameters of model
-    :param model: ML model made using PyTorch NN module
-    :return: None
-    """
-    model.eval()
-    with torch.no_grad():
-        for sequential in model.layers:
-            for layer in sequential:
-                if hasattr(layer, "reset_parameters"):
-                    layer.reset_parameters()
-        for layer in model.classification:
-            if hasattr(layer, "reset_parameters"):
-                layer.reset_parameters()
-    return
-
-
 def k_fold_training(model, model_data, k, batch_size, lr, epochs=10, tcn=False, print_updates=False):
     """
     Function that executes a k-fold cross validation of ML model
@@ -203,14 +186,16 @@ def k_fold_training(model, model_data, k, batch_size, lr, epochs=10, tcn=False, 
     # get list of k tuples containing training and testing set
     cv_set = model_data.create_k_fold_val(k, batch_size, tcn=tcn)
     for fold, (training_set, testing_set) in enumerate(cv_set):
+        model.train()
         if print_updates:
             print(f"Beginning {fold + 1} fold out of {len(cv_set)}")
         train_model(model, training_set, testing_set, lr, epochs=epochs, print_updates=print_updates)
         acc, f1 = test_model(model, testing_set, print_updates=print_updates)
         k_acc.append(acc)
         k_f1.append(f1)
-        measure_array.append(measure_model(model, model_data, testing_set, tcn))
-        reset_params(model)  # reset model weights to make sure previous testing does not influence results of next fold
+        measure_array.append(measure_model(model, model_data, testing_set))
+        # reset model weights to make sure previous testing does not influence results of next fold
+        model.reset_params()
 
     avg_acc = sum(k_acc) / len(k_acc)
     avg_f1 = sum(k_f1) / len(k_f1)
@@ -474,7 +459,6 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
             for kernel_size in kernel_range:
                 if kernel_size > time_steps or kernel_size < dilation:
                     total_iter -= 1
-
     measure_array = []
     start_time = time.time()
     for dilation in dilation_range:
@@ -550,7 +534,6 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                 return
 
 
-
 def main():
     # Create data container for data needed for model
     print("Loading in data")
@@ -563,35 +546,47 @@ def main():
 
     # Needed for both grid searches
     batch_size = 100
-    learning_rate = .01
-    epochs = 50
+    learning_rate = .05
+    epochs = 150
 
     # ANN grid search param
-    num_nodes_in_hl = (5, 25, 2)
+    num_nodes_in_hl = (1, 100, 10)
     num_hidden_layers = (1, 2, 1)
-
-    # Conv1D grid search param
-    time_step_range = (3, 13, 2)
-    kernel_size = (2, 13, 1)
-    output_channels = (4, 7, 1)
-    conv_layers_range = (1, 2, 1)
-
     point_search = False
-    file_point_name = "fixed_ann_1c"
-    conv1d_search = True
-    file_conv_name = "fixed_conv1d_1c"
-
+    file_point_name = "ann_1c"
     if point_search:
         print("Beginning point by point model grid search\n Please do not close window.")
         ann_model_grid_search(model_data, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
                               epochs=epochs, print_updates=True, file_base_name=file_point_name)
         print("Finished with point to point grid search \n")
 
+    # Conv1D grid search param
+    time_step_range = (7, 14, 2)
+    kernel_size = (2, 14, 3)
+    output_channels = (5, 8, 1)
+    conv_layers_range = (1, 2, 1)
+    conv1d_search = False
+    file_conv_name = "conv1d_1c"
     if conv1d_search:
         print("Beginning Conv1D model grid search\n")
-        conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels, conv_layers_range,
-                                 batch_size, learning_rate, epochs=epochs, print_updates=True, file_base_name=file_conv_name)
+        conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels,
+                                 conv_layers_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
+                                 file_base_name=file_conv_name)
         print("Finished with Conv1D model grid search\n")
+
+    # TCN grid search param
+    time_step_range = (2, 12, 2)
+    kernel_size = (2, 12, 2)
+    filter_channels = (4, 12, 3)
+    dilation_bases = (2, 4, 1)
+    tcn_search = True
+    file_tcn_name = "tcn_test"
+    if tcn_search:
+        print("Beginning TCN model grid search\n")
+        tcn_model_grid_search(model_data, input_size, time_step_range, kernel_size, filter_channels,
+                                 dilation_bases, batch_size, learning_rate, epochs=epochs, print_updates=True,
+                                 file_base_name=file_tcn_name)
+        print("Finished with TCN model grid search\n")
 
     print("Window can be closed.")
 
