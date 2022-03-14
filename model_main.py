@@ -15,7 +15,7 @@ from scipy.io import savemat
 import time
 
 
-def train_model(model, training_data, testing_data, lr, epochs=10, test_interval=10, print_updates=False):
+def train_model(model, training_data, testing_data, lr, epochs=10, test_interval=0, print_updates=False):
     """
     Contains the training loop for an ML model and returns final accuracy of model
     :param model: ML model made using PyTorch NN module
@@ -33,7 +33,6 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
     optimizer = torch.optim.NAdam(model.parameters(), lr=lr)  # Model optimization function
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, epochs//10)
     acc = 0
-    loss = None
     for epoch in range(epochs):
         model.train()
         for batch, (train_data, train_labels) in enumerate(training_data):
@@ -455,10 +454,11 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     n_iter = 0
     total_iter = len(time_range) * len(kernel_range) * len(filter_range) * len(dilation_range)
     for dilation in dilation_range:
-        for time_steps in time_range:
-            for kernel_size in kernel_range:
-                if kernel_size > time_steps or kernel_size < dilation:
-                    total_iter -= 1
+        for filter_size in filter_range:
+            for time_steps in time_range:
+                for kernel_size in kernel_range:
+                    if kernel_size > time_steps or kernel_size < dilation:
+                        total_iter -= 1
     measure_array = []
     start_time = time.time()
     for dilation in dilation_range:
@@ -527,11 +527,11 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                               f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
                               f"models in grid search\n")
 
-                    # save time step accuracy measurements as matlab array
-                measure_matrix = np.asarray(measure_array)
-                mdic = {f"{file_base_name}_data": measure_matrix}
-                savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
-                return
+    # save time step accuracy measurements as matlab array
+    measure_matrix = np.asarray(measure_array)
+    mdic = {f"{file_base_name}_data": measure_matrix}
+    savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
+    return
 
 
 def main():
