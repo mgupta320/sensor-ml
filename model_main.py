@@ -457,14 +457,16 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
         for filter_size in filter_range:
             for time_steps in time_range:
                 for kernel_size in kernel_range:
-                    if kernel_size > time_steps or kernel_size < dilation:
+                    true_kernel_size = time_steps - kernel_size
+                    if true_kernel_size > time_steps or true_kernel_size < dilation:
                         total_iter -= 1
     measure_array = []
     start_time = time.time()
     for dilation in dilation_range:
         for filter_size in filter_range:
             for time_steps in time_range:
-                for kernel_size in kernel_range:
+                for kernel_diff in kernel_range:
+                    kernel_size = time_steps - kernel_diff
                     if kernel_size > time_steps or kernel_size < dilation:
                         continue
 
@@ -575,9 +577,9 @@ def main():
         print("Finished with Conv1D model grid search\n")
 
     # TCN grid search param
-    time_step_range = (2, 12, 2)
-    kernel_size = (2, 12, 2)
-    filter_channels = (4, 12, 3)
+    time_step_range = (8, 13, 1)
+    kernel_size = (0, 5, 2)
+    filter_channels = (7, 11, 1)
     dilation_bases = (2, 4, 1)
     tcn_search = True
     file_tcn_name = "tcn_test"
