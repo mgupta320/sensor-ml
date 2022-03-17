@@ -243,7 +243,7 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
             if print_updates:
                 print(f"\n--------------------Trying model with {num_nodes_in_hl} nodes "
                       f"in {num_hid_layers} hidden layer-----------------------")
-                n_iter += 1
+            n_iter += 1
 
             # conduct kfold validation of model
             final_acc, final_f1, measurement = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, False,
@@ -353,7 +353,7 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
                     if print_updates:
                         print(f"\n---------------Trying model with {output_channels} output channels and {num_conv_layers} layers, {time_steps} time "
                               f"steps, and kernel size of {kernel_size}---------------")
-                        n_iter += 1
+                    n_iter += 1
 
                     model = Conv1D_Model(kernel_size, time_steps, output_channels, num_conv_layers=num_conv_layers,
                                          input_size=input_size)
@@ -460,6 +460,8 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                     true_kernel_size = time_steps - kernel_size
                     if true_kernel_size > time_steps or true_kernel_size < dilation:
                         total_iter -= 1
+    f = open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a')
+    csv_writer = writer(f)
     measure_array = []
     start_time = time.time()
     for dilation in dilation_range:
@@ -473,7 +475,7 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                     if print_updates:
                         print(f"\n---------------Trying model with {filter_size} filter channels and {dilation} "
                               f"dilation base, {time_steps} time steps, and kernel size of {kernel_size}--------------")
-                        n_iter += 1
+                    n_iter += 1
 
                     model = TCN_Model(kernel_size, time_steps, input_size, num_outputs, filter_size,
                                       dilation_base=dilation)
@@ -492,10 +494,7 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                             f"and kernel size of {kernel_size}-----------\n")
 
                     # add hyper parameter performance to csv
-                    with open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a') as f:
-                        csv_writer = writer(f)
-                        csv_writer.writerow(model_features)
-                        f.close()
+                    csv_writer.writerow(model_features)
 
                     if make_conf_mat:
                         # get confusion matrix
@@ -528,7 +527,7 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                         print(f"{taken_hours} hr {taken_min} min to try {n_iter} models. "
                               f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
                               f"models in grid search\n")
-
+    f.close()
     # save time step accuracy measurements as matlab array
     measure_matrix = np.asarray(measure_array)
     mdic = {f"{file_base_name}_data": measure_matrix}
@@ -577,10 +576,10 @@ def main():
         print("Finished with Conv1D model grid search\n")
 
     # TCN grid search param
-    time_step_range = (8, 13, 1)
+    time_step_range = (8, 13, 2)
     kernel_size = (0, 5, 2)
-    filter_channels = (7, 11, 1)
-    dilation_bases = (2, 4, 1)
+    filter_channels = (7, 12, 2)
+    dilation_bases = (2, 3, 1)
     tcn_search = True
     file_tcn_name = "tcn_test"
     if tcn_search:
