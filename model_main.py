@@ -148,7 +148,7 @@ def acc_buckets(data_array, bucket_size):
     :return: array of average accuracy of model for each section of timesteps
     """
     buckets_array = []
-    least_len = float("inf")  # needed to make sure resulting array is not ragged
+    least_len = float("inf")  # needed to make sure resulting array is not jagged
     for model in data_array:
         least_len = min(least_len, len(model))
 
@@ -163,6 +163,16 @@ def acc_buckets(data_array, bucket_size):
         buckets_array.append(avg_acc)
 
     return buckets_array
+
+
+def fix_jagged(data_array):
+    fixed_array = []
+    least_len = float("inf")
+    for model in data_array:
+        least_len = min(least_len, len(model))
+    for model in data_array:
+        fixed_array.append(model[:least_len])
+    return fixed_array
 
 
 def k_fold_training(model, model_data, k, batch_size, lr, epochs=10, tcn=False, print_updates=False):
@@ -292,6 +302,7 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
                       f"models in grid search\n")
 
     # save time step accuracy measurements as matlab array
+    measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
     mdic = {f"{file_base_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
@@ -408,6 +419,7 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
                               f"models in grid search\n")
 
     # save time step accuracy measurements as matlab array
+    measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
     mdic = {f"{file_base_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
@@ -529,6 +541,7 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
                               f"models in grid search\n")
     f.close()
     # save time step accuracy measurements as matlab array
+    measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
     mdic = {f"{file_base_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
@@ -576,9 +589,9 @@ def main():
         print("Finished with Conv1D model grid search\n")
 
     # TCN grid search param
-    time_step_range = (8, 13, 2)
-    kernel_size = (0, 5, 2)
-    filter_channels = (7, 12, 2)
+    time_step_range = (11, 15, 1)
+    kernel_size = (0, 5, 1)
+    filter_channels = (7, 8, 1)
     dilation_bases = (2, 3, 1)
     tcn_search = True
     file_tcn_name = "tcn_test"
