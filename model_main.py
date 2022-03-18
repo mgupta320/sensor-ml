@@ -31,7 +31,7 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
         print(f'Beginning training with {epochs} epochs at learning rate of {lr}')
     criterion = nn.CrossEntropyLoss()  # Loss function for model
     optimizer = torch.optim.NAdam(model.parameters(), lr=lr)  # Model optimization function
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, epochs//10)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, epochs // 10)
     acc = 0
     for epoch in range(epochs):
         model.train()
@@ -208,7 +208,7 @@ def k_fold_training(model, model_data, k, batch_size, lr, epochs=10, tcn=False, 
 
     avg_acc = sum(k_acc) / len(k_acc)
     avg_f1 = sum(k_f1) / len(k_f1)
-    avg_acc_array = acc_buckets(measure_array, 10//k)
+    avg_acc_array = acc_buckets(measure_array, 10 // k)
 
     if print_updates:
         print(f"Across of {k} folds, average accuracy of {avg_acc} and average F1 of {avg_f1}")
@@ -237,27 +237,26 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
     """
     if file_base_name is None:
         file_base_name = "ann"
-    nodes_min, nodes_max, nodes_step = range_nodes
-    node_range = range(nodes_min, nodes_max, nodes_step)
-    layers_min, layers_max, layers_step = range_layers
-    layer_range = range(layers_min, layers_max, layers_step)
-    total_iter = len(node_range) * len(layer_range)
+    num_outputs = len(model_data.classes)
+    total_iter = len(range_nodes) * len(range_layers)
     n_iter = 0
-
+    f = open(f'data/ParameterData/{file_base_name}_models_params.csv', 'w', newline='')
+    csv_writer = writer(f)
     measure_array = []
     start_time = time.time()
-    for num_hid_layers in range(layers_min, layers_max, layers_step):
-        for num_nodes_in_hl in range(nodes_min, nodes_max, nodes_step):
+    for num_hid_layers in range_layers:
+        for num_nodes_in_hl in range_nodes:
 
-            model = PointModel(num_nodes_in_hl, num_hidden_layers=num_hid_layers, input_size=input_size)
+            model = PointModel(num_nodes_in_hl, num_hid_layers, input_size, num_outputs)
             if print_updates:
                 print(f"\n--------------------Trying model with {num_nodes_in_hl} nodes "
                       f"in {num_hid_layers} hidden layer-----------------------")
             n_iter += 1
 
             # conduct kfold validation of model
-            final_acc, final_f1, measurement = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, False,
-                                                  print_updates)
+            final_acc, final_f1, measurement = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs,
+                                                               False,
+                                                               print_updates)
             measure_array.append(measurement)
             model_features = (num_hid_layers, num_nodes_in_hl, final_acc, final_f1)
             if print_updates:
@@ -281,11 +280,8 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
                            f"models/saved_models/"
                            f"{file_base_name}_model_{num_nodes_in_hl}_{num_hid_layers}.pt")
 
-            # add hyper parameter performance to csv
-            with open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a') as f:
-                csv_writer = writer(f)
+                # add hyper parameter performance to csv
                 csv_writer.writerow(model_features)
-                f.close()
 
             # provide time prediction
             if print_updates:
@@ -301,6 +297,7 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
                       f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
                       f"models in grid search\n")
 
+    f.close()
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
@@ -309,7 +306,8 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
     return
 
 
-def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_sizes, out_channels_range, conv_layers_range,
+def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_sizes, out_channels_range,
+                             conv_layers_range,
                              batch_size, learning_rate, epochs=50, print_updates=False, file_base_name=None,
                              make_conf_mat=False, save_models=False):
     """
@@ -317,14 +315,10 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
     matrices, and model measurements
     :param model_data: ModelDataContainer constructed with data being used for model training
     :param input_size: int number of input variables
-    :param time_step_range: tuple containing range of time steps to be swept in same structure as python range function
-    (min, max, step)
-    :param kernel_sizes: tuple containing range of convolving kernel sizes to be swept in same structure as python range
-    function (min, max, step)
-    :param out_channels_range: tuple containing range of output channels to be swept in same structure as python range
-    function (min, max, step)
-    :param conv_layers_range: tuple containing range of convolving layers to be swept in same structure as python range
-    function (min, max, step)
+    :param time_step_range: iterable containing range of time steps to be swept
+    :param kernel_sizes: iterable containing range of convolving kernel sizes to be swept
+    :param out_channels_range: iterable containing range of output channels to be swept
+    :param conv_layers_range: iterable containing range of convolving layers to be swept
     :param batch_size: int number of samples in each batch trained on before an optimization step
     :param learning_rate: float value for learning rate of model
     :param epochs: int epochs training loop runs for
@@ -336,42 +330,39 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
     """
     if file_base_name is None:
         file_base_name = "conv1d"
-
-    time_min, time_max, time_step_step = time_step_range
-    time_range = range(time_min, time_max, time_step_step)
-    kernel_min, kernel_max, kernel_step = kernel_sizes
-    kernel_range = range(kernel_min, kernel_max, kernel_step)
-    out_min, out_max, out_step = out_channels_range
-    out_range = range(out_min, out_max, out_step)
-    layers_min, layers_max, layers_step = conv_layers_range
-    layer_range = range(layers_min, layers_max, layers_step)
-    total_iter = len(time_range) * len(kernel_range) * len(out_range) * len(layer_range)
-    for time_steps in time_range:
-        for kernel_size in kernel_range:
-            if kernel_size > time_steps:
-                total_iter -= 1
+    num_outputs = len(model_data.classes)
+    total_iter = len(time_step_range) * len(kernel_sizes) * len(out_channels_range) * len(conv_layers_range)
+    for num_conv_layers in conv_layers_range:
+        for output_channels in out_channels_range:
+            for time_steps in time_step_range:
+                for kernel_size in kernel_sizes:
+                    if kernel_size > time_steps:
+                        total_iter -= 1
     n_iter = 0
-
+    f = open(f'data/ParameterData/{file_base_name}_models_params.csv', 'w', newline='')
+    csv_writer = writer(f)
     measure_array = []
     start_time = time.time()
-    for num_conv_layers in layer_range:
-        for output_channels in out_range:
-            for time_steps in time_range:
-                for kernel_size in kernel_range:
+    for num_conv_layers in conv_layers_range:
+        for output_channels in out_channels_range:
+            for time_steps in time_step_range:
+                for kernel_size in kernel_sizes:
                     # kernel size cannot be greater than number of time steps for 1DConv model
                     if kernel_size > time_steps:
                         continue
                     if print_updates:
-                        print(f"\n---------------Trying model with {output_channels} output channels and {num_conv_layers} layers, {time_steps} time "
-                              f"steps, and kernel size of {kernel_size}---------------")
+                        print(
+                            f"\n---------------Trying model with {output_channels} output channels and {num_conv_layers} layers, {time_steps} time "
+                            f"steps, and kernel size of {kernel_size}---------------")
                     n_iter += 1
 
-                    model = Conv1D_Model(kernel_size, time_steps, output_channels, num_conv_layers=num_conv_layers,
-                                         input_size=input_size)
+                    model = Conv1D_Model(kernel_size, time_steps, output_channels, num_conv_layers, input_size,
+                                         num_outputs)
                     model_data.create_time_series_data(time_steps)
                     # conduct kfold validation of model
-                    final_acc, final_f1, measurement = k_fold_training(model, model_data, 5, batch_size, learning_rate, epochs, True,
-                                                          print_updates)
+                    final_acc, final_f1, measurement = k_fold_training(model, model_data, 5, batch_size, learning_rate,
+                                                                       epochs, True,
+                                                                       print_updates)
                     measure_array.append(measurement)
                     model_features = (num_conv_layers, output_channels, time_steps, kernel_size, final_acc, final_f1)
 
@@ -382,10 +373,7 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
                             f"time steps, and kernel size of {kernel_size}-----------\n")
 
                     # add hyper parameter performance to csv
-                    with open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a') as f:
-                        csv_writer = writer(f)
-                        csv_writer.writerow(model_features)
-                        f.close()
+                    csv_writer.writerow(model_features)
 
                     if make_conf_mat:
                         # get confusion matrix
@@ -394,7 +382,8 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
                         # construct confusion matrix for model performance
                         plt.figure(figsize=(12, 7))
                         sn.heatmap(df_cm, annot=True)
-                        plt.savefig(f'data/Graphs/{file_base_name}_{time_steps}_{kernel_size}_{output_channels}_{num_conv_layers}.png')
+                        plt.savefig(
+                            f'data/Graphs/{file_base_name}_{time_steps}_{kernel_size}_{output_channels}_{num_conv_layers}.png')
                         plt.close()
 
                     # save PyTorch model for later use
@@ -418,6 +407,7 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
                               f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
                               f"models in grid search\n")
 
+    f.close()
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
@@ -434,14 +424,10 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     matrices, and model measurements
     :param model_data: ModelDataContainer constructed with data being used for model training
     :param input_size: int number of input variables
-    :param time_step_range: tuple containing range of time steps to be swept in same structure as python range function
-    (min, max, step)
-    :param kernel_sizes: tuple containing range of convolving kernel sizes to be swept in same structure as python range
-    function (min, max, step)
-    :param filter_channel_range: tuple containing range of number of filter channels to be swept in same structure as
-    python range function (min, max, step)
-    :param dil_base_range: tuple containing range of dilation bases to be swept in same structure as python range
-    function (min, max, step)
+    :param time_step_range: iterable containing range of time steps to be swept
+    :param kernel_sizes: iterable containing range of convolving kernel sizes to be swept
+    :param filter_channel_range: iterable containing range of number of filter channels to be swept
+    :param dil_base_range: iterable containing range of dilation bases to be swept
     :param batch_size: int number of samples in each batch trained on before an optimization step
     :param learning_rate: float value for learning rate of model
     :param epochs: int epochs training loop runs for
@@ -455,32 +441,22 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
         file_base_name = "tcn"
 
     num_outputs = len(model_data.classes)
-    time_min, time_max, time_step_step = time_step_range
-    time_range = range(time_min, time_max, time_step_step)
-    kernel_min, kernel_max, kernel_step = kernel_sizes
-    kernel_range = range(kernel_min, kernel_max, kernel_step)
-    filter_min, filter_max, filter_step_step = filter_channel_range
-    filter_range = range(filter_min, filter_max, filter_step_step)
-    dil_min, dil_max, dil_step = dil_base_range
-    dilation_range = range(dil_min, dil_max, dil_step)
     n_iter = 0
-    total_iter = len(time_range) * len(kernel_range) * len(filter_range) * len(dilation_range)
-    for dilation in dilation_range:
-        for filter_size in filter_range:
-            for time_steps in time_range:
-                for kernel_size in kernel_range:
-                    true_kernel_size = time_steps - kernel_size
-                    if true_kernel_size > time_steps or true_kernel_size < dilation:
+    total_iter = len(time_step_range) * len(kernel_sizes) * len(filter_channel_range) * len(dil_base_range)
+    for dilation in dil_base_range:
+        for filter_size in filter_channel_range:
+            for time_steps in time_step_range:
+                for kernel_size in kernel_sizes:
+                    if kernel_size > time_steps or kernel_size < dilation:
                         total_iter -= 1
-    f = open(f'data/ParameterData/{file_base_name}_models_params.csv', 'a')
+    f = open(f'data/ParameterData/{file_base_name}_models_params.csv', 'w', newline='')
     csv_writer = writer(f)
     measure_array = []
     start_time = time.time()
-    for dilation in dilation_range:
-        for filter_size in filter_range:
-            for time_steps in time_range:
-                for kernel_diff in kernel_range:
-                    kernel_size = time_steps - kernel_diff
+    for dilation in dil_base_range:
+        for filter_size in filter_channel_range:
+            for time_steps in time_step_range:
+                for kernel_size in kernel_sizes:
                     if kernel_size > time_steps or kernel_size < dilation:
                         continue
 
@@ -560,14 +536,14 @@ def main():
 
     # Needed for both grid searches
     batch_size = 100
-    learning_rate = .05
+    learning_rate = .01
     epochs = 150
 
     # ANN grid search param
-    num_nodes_in_hl = (1, 100, 10)
-    num_hidden_layers = (1, 2, 1)
-    point_search = False
-    file_point_name = "ann_1c"
+    num_nodes_in_hl = list(range(1, 10, 1)) + list(range(10, 30, 5)) + list(range(30, 51, 10))
+    num_hidden_layers = range(1, 3, 1)
+    point_search = True
+    file_point_name = "ann_1c_big_grid"
     if point_search:
         print("Beginning point by point model grid search\n Please do not close window.")
         ann_model_grid_search(model_data, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
@@ -575,12 +551,12 @@ def main():
         print("Finished with point to point grid search \n")
 
     # Conv1D grid search param
-    time_step_range = (7, 14, 2)
-    kernel_size = (2, 14, 3)
-    output_channels = (5, 8, 1)
-    conv_layers_range = (1, 2, 1)
-    conv1d_search = False
-    file_conv_name = "conv1d_1c"
+    time_step_range = range(7, 14, 2)
+    kernel_size = range(3, 8, 2)
+    output_channels = range(5, 12, 2)
+    conv_layers_range = range(1, 3, 1)
+    conv1d_search = True
+    file_conv_name = "conv1d_1c_big_grid"
     if conv1d_search:
         print("Beginning Conv1D model grid search\n")
         conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels,
@@ -589,17 +565,17 @@ def main():
         print("Finished with Conv1D model grid search\n")
 
     # TCN grid search param
-    time_step_range = (11, 15, 1)
-    kernel_size = (0, 5, 1)
-    filter_channels = (7, 8, 1)
-    dilation_bases = (2, 3, 1)
+    time_step_range = range(3, 14, 3)
+    kernel_size = range(2, 7, 2)
+    filter_channels = range(5, 12, 2)
+    dilation_bases = range(2, 4, 1)
     tcn_search = True
-    file_tcn_name = "tcn_test"
+    file_tcn_name = "tcn_1c_big_grid"
     if tcn_search:
         print("Beginning TCN model grid search\n")
         tcn_model_grid_search(model_data, input_size, time_step_range, kernel_size, filter_channels,
-                                 dilation_bases, batch_size, learning_rate, epochs=epochs, print_updates=True,
-                                 file_base_name=file_tcn_name)
+                              dilation_bases, batch_size, learning_rate, epochs=epochs, print_updates=True,
+                              file_base_name=file_tcn_name)
         print("Finished with TCN model grid search\n")
 
     print("Window can be closed.")
