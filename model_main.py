@@ -356,7 +356,7 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
                             f"steps, and kernel size of {kernel_size}---------------")
                     n_iter += 1
 
-                    model = Conv1D_Model(kernel_size, time_steps, output_channels, num_conv_layers, input_size,
+                    model = Conv1D_Model(kernel_size, time_steps, output_channels, input_size, num_conv_layers,
                                          num_outputs)
                     model_data.create_time_series_data(time_steps)
                     # conduct kfold validation of model
@@ -529,21 +529,21 @@ def main():
     print("Loading in data")
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
     input_size = 9
-    data_file = "data/DataContainers/one_conc_matrix.mat"
-    matrix_name = "one_conc_matrix"
+    data_file = "data/DataContainers/all_conc_matrix.mat"
+    matrix_name = "all_conc_matrix"
     model_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=1346, input_vars=input_size)
     print("Data loaded")
 
     # Needed for both grid searches
-    batch_size = 100
+    batch_size = 500
     learning_rate = .01
     epochs = 150
 
     # ANN grid search param
-    num_nodes_in_hl = list(range(1, 10, 1)) + list(range(10, 30, 5)) + list(range(30, 51, 10))
+    num_nodes_in_hl = list(range(1, 15, 1)) + list(range(15, 30, 5)) + list(range(30, 51, 10))
     num_hidden_layers = range(1, 3, 1)
-    point_search = True
-    file_point_name = "ann_1c_big_grid"
+    point_search = False
+    file_point_name = "ann_allc_big_grid"
     if point_search:
         print("Beginning point by point model grid search\n Please do not close window.")
         ann_model_grid_search(model_data, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
@@ -556,7 +556,7 @@ def main():
     output_channels = range(5, 12, 2)
     conv_layers_range = range(1, 3, 1)
     conv1d_search = True
-    file_conv_name = "conv1d_1c_big_grid"
+    file_conv_name = "conv1d_allc_big_grid"
     if conv1d_search:
         print("Beginning Conv1D model grid search\n")
         conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels,
@@ -565,12 +565,12 @@ def main():
         print("Finished with Conv1D model grid search\n")
 
     # TCN grid search param
-    time_step_range = range(3, 14, 3)
-    kernel_size = range(2, 7, 2)
+    time_step_range = range(3, 14, 2)
+    kernel_size = range(2, 7, 1)
     filter_channels = range(5, 12, 2)
-    dilation_bases = range(2, 4, 1)
+    dilation_bases = range(2, 3, 1)
     tcn_search = True
-    file_tcn_name = "tcn_1c_big_grid"
+    file_tcn_name = "tcn_allc_big_grid"
     if tcn_search:
         print("Beginning TCN model grid search\n")
         tcn_model_grid_search(model_data, input_size, time_step_range, kernel_size, filter_channels,
