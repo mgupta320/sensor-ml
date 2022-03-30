@@ -28,7 +28,7 @@ class ModelDataContainer:
         x_standardized = np.zeros(np.shape(x))
         for i in range(num_samples):
             x_standardized[:, i, 0:input_vars] = standardizer.fit_transform(x[:, i, 0:input_vars])
-
+        self.input_size = input_vars
         self.classes = classes
         self.x = x_standardized.astype(np.float32)
         # self.x = x.astype(np.float32) for raw data

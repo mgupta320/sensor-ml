@@ -365,15 +365,14 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
                                                                        print_updates)
                     measure_array.append(measurement)
                     model_features = (num_conv_layers, output_channels, time_steps, kernel_size, final_acc, final_f1)
+                    # add hyper parameter performance to csv
+                    csv_writer.writerow(model_features)
 
                     if print_updates:
                         print(
                             f"---------Average accuracy of {final_acc} and f1 of {final_f1} for "
                             f"model with {output_channels} output channels and {num_conv_layers} layers, {time_steps} "
                             f"time steps, and kernel size of {kernel_size}-----------\n")
-
-                    # add hyper parameter performance to csv
-                    csv_writer.writerow(model_features)
 
                     if make_conf_mat:
                         # get confusion matrix
@@ -566,6 +565,7 @@ def main():
     conv_layers_range = range(1, 2, 1)
 
     for data_container, file_name in model_data_holder:
+        input_size = data_container.input_size
         print(f"Beginning ANN model grid search for {file_name}\n Please do not close window.")
         ann_model_grid_search(data_container, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
                               epochs=epochs, print_updates=True, file_base_name=file_name)
