@@ -280,8 +280,8 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
                            f"models/saved_models/"
                            f"{file_base_name}_model_{num_nodes_in_hl}_{num_hid_layers}.pt")
 
-                # add hyper parameter performance to csv
-                csv_writer.writerow(model_features)
+            # add hyper parameter performance to csv
+            csv_writer.writerow(model_features)
 
             # provide time prediction
             if print_updates:
@@ -526,12 +526,29 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
 
 def main():
     # Create data container for data needed for model
-    print("Loading in data")
+    print("---------------DO NOT CLOSE WINDOW----------\nLoading in data.")
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
-    input_size = 9
-    data_file = "data/DataContainers/all_conc_matrix.mat"
-    matrix_name = "all_conc_matrix"
-    model_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=1346, input_vars=input_size)
+    model_data_holder = []
+    # BME Heater Profile 1
+    input_size = 7
+    data_file = "data/DataContainers/bme_prof1_data_container.mat"
+    matrix_name = "bme_prof1_data_container"
+    bme_prof1_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=529, input_vars=input_size)
+    model_data_holder.append((bme_prof1_data, "bme_HP301"))
+
+    # BME Heater Profile 2
+    input_size = 7
+    data_file = "data/DataContainers/bme_prof2_data_container.mat"
+    matrix_name = "bme_prof2_data_container"
+    bme_prof2_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=366, input_vars=input_size)
+    model_data_holder.append((bme_prof2_data, "bme_HP412"))
+
+    # Multisensor
+    input_size = 2
+    data_file = "data/DataContainers/multisensor_data_container.mat"
+    matrix_name = "multisensor_data_container"
+    multisensor_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=851, input_vars=input_size)
+    model_data_holder.append((multisensor_data, "multisensor"))
     print("Data loaded")
 
     # Needed for both grid searches
@@ -540,45 +557,25 @@ def main():
     epochs = 150
 
     # ANN grid search param
-    num_nodes_in_hl = list(range(1, 15, 1)) + list(range(15, 30, 5)) + list(range(30, 51, 10))
-    num_hidden_layers = range(1, 3, 1)
-    point_search = False
-    file_point_name = "ann_allc_big_grid"
-    if point_search:
-        print("Beginning point by point model grid search\n Please do not close window.")
-        ann_model_grid_search(model_data, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
-                              epochs=epochs, print_updates=True, file_base_name=file_point_name)
-        print("Finished with point to point grid search \n")
-
+    num_nodes_in_hl = list(range(5, 10, 1)) + list(range(10, 25, 5)) + list(range(25, 50, 10))
+    num_hidden_layers = range(1, 2, 1)
     # Conv1D grid search param
     time_step_range = range(7, 14, 2)
-    kernel_size = range(3, 8, 2)
-    output_channels = range(5, 12, 2)
-    conv_layers_range = range(1, 3, 1)
-    conv1d_search = True
-    file_conv_name = "conv1d_allc_big_grid"
-    if conv1d_search:
-        print("Beginning Conv1D model grid search\n")
-        conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_size, output_channels,
+    kernel_size_range = range(3, 8, 2)
+    output_channels_range = range(7, 12, 2)
+    conv_layers_range = range(1, 2, 1)
+
+    for data_container, file_name in model_data_holder:
+        print(f"Beginning ANN model grid search for {file_name}\n Please do not close window.")
+        ann_model_grid_search(data_container, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
+                              epochs=epochs, print_updates=True, file_base_name=file_name)
+        print(f"Finished with ANN model grid search for {file_name}\n")
+
+        print(f"Beginning Conv1D model grid search for {file_name}\n Please do not close window.")
+        conv1d_model_grid_search(data_container, input_size, time_step_range, kernel_size_range, output_channels_range,
                                  conv_layers_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
-                                 file_base_name=file_conv_name)
-        print("Finished with Conv1D model grid search\n")
-
-    # TCN grid search param
-    time_step_range = range(3, 14, 2)
-    kernel_size = range(2, 7, 1)
-    filter_channels = range(5, 12, 2)
-    dilation_bases = range(2, 3, 1)
-    tcn_search = True
-    file_tcn_name = "tcn_allc_big_grid"
-    if tcn_search:
-        print("Beginning TCN model grid search\n")
-        tcn_model_grid_search(model_data, input_size, time_step_range, kernel_size, filter_channels,
-                              dilation_bases, batch_size, learning_rate, epochs=epochs, print_updates=True,
-                              file_base_name=file_tcn_name)
-        print("Finished with TCN model grid search\n")
-
-    print("Window can be closed.")
+                                 file_base_name=file_name)
+        print(f"Finished with Conv1D model grid search for {file_name}\n")
 
 
 if __name__ == "__main__":
