@@ -244,6 +244,8 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
     csv_writer = writer(f)
     measure_array = []
     start_time = time.time()
+    if print_updates:
+        print(f"Beginning grid search of {total_iter} models")
     for num_hid_layers in range_layers:
         for num_nodes_in_hl in range_nodes:
 
@@ -343,6 +345,8 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
     csv_writer = writer(f)
     measure_array = []
     start_time = time.time()
+    if print_updates:
+        print(f"Beginning grid search of {total_iter} models")
     for num_conv_layers in conv_layers_range:
         for output_channels in out_channels_range:
             for time_steps in time_step_range:
@@ -556,27 +560,38 @@ def main():
     epochs = 150
 
     # ANN grid search param
-    num_nodes_in_hl = list(range(5, 10, 1)) + list(range(10, 25, 5)) + list(range(25, 50, 10))
+    num_nodes_in_hl = range(10, 20)
     num_hidden_layers = range(1, 2, 1)
-    # Conv1D grid search param
-    time_step_range = range(7, 14, 2)
-    kernel_size_range = range(3, 8, 2)
-    output_channels_range = range(7, 12, 2)
-    conv_layers_range = range(1, 2, 1)
 
+    already_done = 0
+    i = 0
     for data_container, file_name in model_data_holder:
+        if i >= already_done:
+            i += 1
+            continue
+        else:
+            i += 1
+        file_name += "_ANN"
         input_size = data_container.input_size
         print(f"Beginning ANN model grid search for {file_name}\n Please do not close window.")
         ann_model_grid_search(data_container, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
                               epochs=epochs, print_updates=True, file_base_name=file_name)
         print(f"Finished with ANN model grid search for {file_name}\n")
 
+    # Conv1D grid search param
+    time_step_range = range(6, 11, 2)
+    kernel_size_range = range(2, 7, 2)
+    output_channels_range = range(4, 7, 1)
+    conv_layers_range = range(1, 2, 1)
+
+    for data_container, file_name in model_data_holder:
+        file_name += "_CNN"
+        input_size = data_container.input_size
         print(f"Beginning Conv1D model grid search for {file_name}\n Please do not close window.")
         conv1d_model_grid_search(data_container, input_size, time_step_range, kernel_size_range, output_channels_range,
                                  conv_layers_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
                                  file_base_name=file_name)
         print(f"Finished with Conv1D model grid search for {file_name}\n")
-
 
 if __name__ == "__main__":
     main()
