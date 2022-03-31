@@ -130,8 +130,8 @@ def measure_model(model, model_data, data_loader):
         for ind, (inputs, labels) in enumerate(data_loader):
             output = model(inputs)
             output = (output.argmax(dim=1, keepdim=True)[0]).numpy()  # Get model prediction
-            output_predictions[ind % tests, ind % samples] = output  # Save prediction
-            output_true[ind % tests, ind % samples] = labels  # Save actual labels
+            output_predictions[ind // samples, ind % samples] = output  # Save prediction
+            output_true[ind // samples, ind % samples] = labels  # Save actual labels
     for i in range(samples):
         true = output_true[:, i]
         pred = output_predictions[:, i]
