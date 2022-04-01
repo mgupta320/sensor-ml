@@ -560,17 +560,10 @@ def main():
     epochs = 150
 
     # ANN grid search param
-    num_nodes_in_hl = range(10, 20)
+    num_nodes_in_hl = range(10, 20, 2)
     num_hidden_layers = range(1, 2, 1)
 
-    already_done = 0
-    i = 0
     for data_container, file_name in model_data_holder:
-        if i >= already_done:
-            i += 1
-            continue
-        else:
-            i += 1
         file_name += "_ANN"
         input_size = data_container.input_size
         print(f"Beginning ANN model grid search for {file_name}\n Please do not close window.")
@@ -579,9 +572,9 @@ def main():
         print(f"Finished with ANN model grid search for {file_name}\n")
 
     # Conv1D grid search param
-    time_step_range = range(6, 11, 2)
+    time_step_range = range(8, 11, 2)
     kernel_size_range = range(2, 7, 2)
-    output_channels_range = range(4, 7, 1)
+    output_channels_range = range(5, 6, 1)
     conv_layers_range = range(1, 2, 1)
 
     for data_container, file_name in model_data_holder:
