@@ -1,23 +1,24 @@
 import torch
 import numpy as np
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import TensorDataset, DataLoader
 from scipy.io import loadmat
 
 
 class ModelDataContainer:
-    def __init__(self, file_name, matrix_name, classes, time_steps=10, num_samples=1346, input_vars=6):
+    def __init__(self, file_name, classes, matrix_name=None, time_steps=10, num_samples=1346, input_vars=6):
         """
         ModelDataContainer initializer that creates container to handle data for model
         :param file_name: string path to .mat matrix
-        :param matrix_name: string name of matrix in matlab
         :param classes: tuple where each value is a string at its index value in target index
+        :param matrix_name: string name of matrix in matlab, defaults to None in which case matrix name is file name
         :param time_steps: number of time steps for TCN (can be changed)
-        :param num_samples: number of samples in each test
         :param input_vars: number of input variables in each sample
         """
         # get data from matlab matrix and split into x and y data
+        if matrix_name is None:
+            matrix_name = file_name.split("/")[-1][:-4]
         input_data = loadmat(file_name, verify_compressed_data_integrity=False)[matrix_name]
         x = input_data[:, :, 0:input_vars]
         y = input_data[:, :, input_vars]
@@ -27,17 +28,15 @@ class ModelDataContainer:
         x_standardized = np.zeros(np.shape(x))
         for i in range(num_samples):
             x_standardized[:, i, 0:input_vars] = standardizer.fit_transform(x[:, i, 0:input_vars])
-
+        self.input_size = input_vars
         self.classes = classes
         self.x = x_standardized.astype(np.float32)
+        # self.x = x.astype(np.float32) for raw data
         self.y = y.astype(np.int64)
-        shape = self.x.shape
-        self.x_point = self.x.reshape((shape[0] * shape[1], shape[2]))  # squeeze all data into 2d matrix for ANN
-        shape = self.y.shape
-        self.y_point = self.y.reshape((shape[0] * shape[1])) # squeeze labels into 2d matrix for ANN
+        self.x_point = self.x
+        self.y_point = self.y
         self.training = None
         self.testing = None
-        self.create_train_test()  # automatically create training and testing set with a 1/3 holdout and batch size of 5
         self.time_steps = time_steps
         self.x_time = None
         self.y_time = None
@@ -51,14 +50,19 @@ class ModelDataContainer:
         :param tcn: boolean of whether DataLoaders are for TCN or not
         :return: tuple containing (DataLoader training_set, DataLoader testing_set)
         """
-        # select point data for ANN and time series data for TCN
+        # select point data for ANN and time series data for TCN and combine test and sample dimensions
         if not tcn:
             data = self.x_point
             labels = self.y_point
+            data = data.reshape((data.shape[0] * data.shape[1], data.shape[2]))
+            labels = labels.reshape((labels.shape[0] * labels.shape[1]))
         else:
             data = self.x_time
             labels = self.y_time
+            data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
+            labels = labels.reshape((labels.shape[0] * labels.shape[1]))
 
+        # if test size is 0, testing and training set are entire dataset
         if test_size == 0:
             x_r, x_t, y_r, y_t = data, data, labels, labels
         else:
@@ -86,17 +90,15 @@ class ModelDataContainer:
         """
         self.time_steps = time_steps
         point_data_shape = self.x.shape
-        time_x = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps), point_data_shape[2], time_steps))
-        time_y = np.empty((point_data_shape[0] * (point_data_shape[1] - time_steps)))
+        time_x = np.empty((point_data_shape[0], point_data_shape[1] - time_steps, point_data_shape[2], time_steps))
+        time_y = np.empty((point_data_shape[0], point_data_shape[1] - time_steps))
 
         for test in range(point_data_shape[0]):
             for sample in range(point_data_shape[1] - time_steps):
                 time_series = self.x[test, sample:(sample + time_steps), :]
                 time_series = np.transpose(time_series)
-                index = test * (point_data_shape[1] - time_steps) + sample
-                time_x[index] = time_series
-            time_y[test * (point_data_shape[1] - time_steps):(test + 1) * (point_data_shape[1] - time_steps)] = self.y[
-                test, 0]
+                time_x[test, sample] = time_series
+            time_y[test, :] = self.y[test, 0]
 
         self.x_time = time_x.astype(np.float32)
         self.y_time = time_y.astype(np.int64)
@@ -110,26 +112,39 @@ class ModelDataContainer:
         :param tcn: boolean of whether DataLoaders are for TCN or not
         :return: array of k tuples where each tuple contains (DataLoader training_set, DataLoader testing_set)
         """
+        # collect data sets to be used
         if not tcn:
             data = self.x_point
             labels = self.y_point
         else:
             data = self.x_time
             labels = self.y_time
+        flat_val = 1 + int(tcn)  # Last dimension kept same in ANN, last 2 in TCN kept same
 
-        kfold = KFold(n_splits=k, shuffle=True)
         kfold_sets = []
-        for train_ind, test_ind in kfold.split(data, labels):
-            x_train = torch.from_numpy(data[train_ind])
-            x_test = torch.from_numpy(data[test_ind])
-            y_train = torch.from_numpy(labels[train_ind])
-            y_test = torch.from_numpy(labels[test_ind])
+        for fold in range(k):
+            # each fold uses every kth point for testing and all other points for training to prevent leakage when
+            # measuring model performance vs time
+            mask_train = [x for x in range(data.shape[1]) if (x + fold) % k != 0]
+            mask_test = [x for x in range(data.shape[1]) if (x + fold) % k == 0]
+            x_train = data[:, mask_train, :]
+            train_shape = x_train.shape
+            x_test = data[:, mask_test, :]
+            test_shape = x_test.shape
+            y_train = labels[:, mask_train]
+            y_test = labels[:, mask_test]
 
+            # test and sample dimensions combined
+            x_train = torch.from_numpy(x_train.reshape(-1, *x_train.shape[-flat_val:]))
+            y_train = torch.from_numpy(y_train.reshape((train_shape[0] * train_shape[1])))
+            x_test = torch.from_numpy(x_test.reshape(-1, *x_test.shape[-flat_val:]))
+            y_test = torch.from_numpy(y_test.reshape((test_shape[0] * test_shape[1])))
+
+            # create data loaders for training and testing with testing set still in chronological order
             train = TensorDataset(x_train, y_train)
             test = TensorDataset(x_test, y_test)
-
             training = DataLoader(dataset=train, batch_size=batch_size, shuffle=True, num_workers=0)
-            testing = DataLoader(dataset=test, shuffle=True, num_workers=0)
+            testing = DataLoader(dataset=test, shuffle=False, num_workers=0)
             kfold_sets.append((training, testing))
 
         return kfold_sets
