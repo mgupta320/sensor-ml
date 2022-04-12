@@ -67,10 +67,12 @@ def test_model(model, testing_set, print_updates=True):
     model.eval()
     out_pred = []
     out_true = []
+    num_zeroes_guess = 0.0
     with torch.no_grad():
         for inputs, labels in testing_set:
             output = model(inputs)  # Get model prediction
             output = (output.argmax(dim=1, keepdim=True)[0]).numpy()
+            num_zeroes_guess += output == 0
             out_pred.extend(output)  # Save prediction
             labels = labels.numpy()
             out_true.extend(labels)  # Save actual labels
