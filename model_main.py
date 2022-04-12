@@ -551,7 +551,7 @@ def main():
     for data_container, file_name in model_data_holder:
         print(f"Beginning ANN model grid search for {file_name}\n Please do not close window.")
         input_size = data_container.input_size
-        file_base_name = "/ISS_tests" + file_name + "_ANN"
+        file_base_name = "/ISS_tests/" + file_name + "_ANN"
 
         ann_model_grid_search(data_container, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
                               epochs=epochs, print_updates=True, file_base_name=file_base_name)
@@ -566,7 +566,7 @@ def main():
     for data_container, file_name in model_data_holder:
         print(f"Beginning Conv1D model grid search for {file_name}\n Please do not close window.")
         input_size = data_container.input_size
-        file_base_name = "/ISS_tests" + file_name + "_CNN"
+        file_base_name = "/ISS_tests/" + file_name + "_CNN"
 
         conv1d_model_grid_search(data_container, input_size, time_step_range, kernel_size_range, output_channels_range,
                                  conv_layers_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
@@ -581,7 +581,7 @@ def main():
     for data_container, file_name in model_data_holder:
         print(f"Beginning TCN model grid search for {file_name}\n Please do not close window.")
         input_size = data_container.input_size
-        file_base_name = "/ISS_tests" + file_name + "_TCN"
+        file_base_name = "/ISS_tests/" + file_name + "_TCN"
 
         tcn_model_grid_search(data_container, input_size, time_step_range, kernel_size_range, filter_channels_range,
                               dil_base_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
