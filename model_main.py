@@ -67,10 +67,12 @@ def test_model(model, testing_set, print_updates=True):
     model.eval()
     out_pred = []
     out_true = []
+    num_zeroes_guess = 0.0
     with torch.no_grad():
         for inputs, labels in testing_set:
             output = model(inputs)  # Get model prediction
             output = (output.argmax(dim=1, keepdim=True)[0]).numpy()
+            num_zeroes_guess += output == 0
             out_pred.extend(output)  # Save prediction
             labels = labels.numpy()
             out_true.extend(labels)  # Save actual labels
@@ -148,11 +150,9 @@ def acc_buckets(data_array, bucket_size):
     :return: array of average accuracy of model for each section of timesteps
     """
     buckets_array = []
-    least_len = float("inf")  # needed to make sure resulting array is not jagged
-    for model in data_array:
-        least_len = min(least_len, len(model))
+    len_of_data = len(data_array[0])
 
-    for i in range(0, least_len, bucket_size):
+    for i in range(0, len_of_data, bucket_size):
         sum_section = 0
         len_section = 0
         for model in data_array:
@@ -167,11 +167,12 @@ def acc_buckets(data_array, bucket_size):
 
 def fix_jagged(data_array):
     fixed_array = []
-    least_len = float("inf")
+    max_len = float("-inf")
     for model in data_array:
-        least_len = min(least_len, len(model))
+        max_len = max(max_len, len(model))
     for model in data_array:
-        fixed_array.append(model[:least_len])
+        new_data = [0] * (max_len - len(model)) + model
+        fixed_array.append(new_data)
     return fixed_array
 
 
@@ -303,7 +304,8 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
-    mdic = {f"{file_base_name}_data": measure_matrix}
+    matrix_name = file_base_name.split("/")[-1]
+    mdic = {f"{matrix_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
@@ -414,7 +416,8 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
-    mdic = {f"{file_base_name}_data": measure_matrix}
+    matrix_name = file_base_name.split("/")[-1]
+    mdic = {f"{matrix_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
@@ -522,7 +525,8 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
-    mdic = {f"{file_base_name}_data": measure_matrix}
+    matrix_name = file_base_name.split("/")[-1]
+    mdic = {f"{matrix_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
@@ -532,25 +536,11 @@ def main():
     print("---------------DO NOT CLOSE WINDOW----------\nLoading in data.")
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
     model_data_holder = []
-    # BME Heater Profile 1
-    input_size = 7
-    data_file = "data/DataContainers/bme_prof1_data_container.mat"
-    matrix_name = "bme_prof1_data_container"
-    bme_prof1_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=529, input_vars=input_size)
-    model_data_holder.append((bme_prof1_data, "bme_HP301"))
-
-    # BME Heater Profile 2
-    input_size = 7
-    data_file = "data/DataContainers/bme_prof2_data_container.mat"
-    matrix_name = "bme_prof2_data_container"
-    bme_prof2_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=366, input_vars=input_size)
-    model_data_holder.append((bme_prof2_data, "bme_HP412"))
-
     # Multisensor
-    input_size = 2
-    data_file = "data/DataContainers/multisensor_data_container.mat"
-    matrix_name = "multisensor_data_container"
-    multisensor_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=851, input_vars=input_size)
+    input_size = 6
+    data_file = "data/DataContainers/ISS_tests/data_container.mat"
+    matrix_name = "data_container"
+    multisensor_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=1346, input_vars=input_size)
     model_data_holder.append((multisensor_data, "multisensor"))
     print("Data loaded")
 
@@ -559,32 +549,21 @@ def main():
     learning_rate = .01
     epochs = 150
 
-    # ANN grid search param
-    num_nodes_in_hl = range(10, 20, 2)
-    num_hidden_layers = range(1, 2, 1)
-
+    #TCN grid search param
+    time_step_range = range(2, 11, 2)
+    kernel_size_range = range(1, 6, 2)
+    filter_channels_range = range(5, 7, 1)
+    dil_base_range = range(2, 3, 1)
     for data_container, file_name in model_data_holder:
-        file_name += "_ANN"
+        print(f"Beginning TCN model grid search for {file_name}\n Please do not close window.")
         input_size = data_container.input_size
-        print(f"Beginning ANN model grid search for {file_name}\n Please do not close window.")
-        ann_model_grid_search(data_container, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
-                              epochs=epochs, print_updates=True, file_base_name=file_name)
-        print(f"Finished with ANN model grid search for {file_name}\n")
+        file_base_name = "/ISS_tests/" + file_name + "_TCN"
 
-    # Conv1D grid search param
-    time_step_range = range(8, 11, 2)
-    kernel_size_range = range(2, 7, 2)
-    output_channels_range = range(5, 6, 1)
-    conv_layers_range = range(1, 2, 1)
+        tcn_model_grid_search(data_container, input_size, time_step_range, kernel_size_range, filter_channels_range,
+                              dil_base_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
+                              file_base_name=file_base_name)
+        print(f"Finished with TCN model grid search for {file_name}\n")
 
-    for data_container, file_name in model_data_holder:
-        file_name += "_CNN"
-        input_size = data_container.input_size
-        print(f"Beginning Conv1D model grid search for {file_name}\n Please do not close window.")
-        conv1d_model_grid_search(data_container, input_size, time_step_range, kernel_size_range, output_channels_range,
-                                 conv_layers_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
-                                 file_base_name=file_name)
-        print(f"Finished with Conv1D model grid search for {file_name}\n")
 
 if __name__ == "__main__":
     main()
