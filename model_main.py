@@ -549,35 +549,6 @@ def main():
     learning_rate = .01
     epochs = 150
 
-    # ANN grid search param
-    num_nodes_in_hl = range(1, 21, 2)
-    num_hidden_layers = range(1, 3, 1)
-
-    for data_container, file_name in model_data_holder:
-        print(f"Beginning ANN model grid search for {file_name}\n Please do not close window.")
-        input_size = data_container.input_size
-        file_base_name = "/ISS_tests/" + file_name + "_ANN"
-
-        ann_model_grid_search(data_container, input_size, num_nodes_in_hl, num_hidden_layers, batch_size, learning_rate,
-                              epochs=epochs, print_updates=True, file_base_name=file_base_name)
-        print(f"Finished with ANN model grid search for {file_name}\n")
-
-    # Conv1D grid search param
-    time_step_range = range(2, 11, 2)
-    kernel_size_range = range(1, 6, 2)
-    output_channels_range = range(5, 7, 1)
-    conv_layers_range = range(1, 3, 1)
-
-    for data_container, file_name in model_data_holder:
-        print(f"Beginning Conv1D model grid search for {file_name}\n Please do not close window.")
-        input_size = data_container.input_size
-        file_base_name = "/ISS_tests/" + file_name + "_CNN"
-
-        conv1d_model_grid_search(data_container, input_size, time_step_range, kernel_size_range, output_channels_range,
-                                 conv_layers_range, batch_size, learning_rate, epochs=epochs, print_updates=True,
-                                 file_base_name=file_base_name)
-        print(f"Finished with Conv1D model grid search for {file_name}\n")
-
     #TCN grid search param
     time_step_range = range(2, 11, 2)
     kernel_size_range = range(1, 6, 2)
