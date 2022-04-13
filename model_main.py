@@ -304,7 +304,8 @@ def ann_model_grid_search(model_data, input_size, range_nodes, range_layers, bat
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
-    mdic = {f"{file_base_name}_data": measure_matrix}
+    matrix_name = file_base_name.split("/")[-1]
+    mdic = {f"{matrix_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
@@ -415,7 +416,8 @@ def conv1d_model_grid_search(model_data, input_size, time_step_range, kernel_siz
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
-    mdic = {f"{file_base_name}_data": measure_matrix}
+    matrix_name = file_base_name.split("/")[-1]
+    mdic = {f"{matrix_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
@@ -523,7 +525,8 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     # save time step accuracy measurements as matlab array
     measure_array = fix_jagged(measure_array)
     measure_matrix = np.asarray(measure_array)
-    mdic = {f"{file_base_name}_data": measure_matrix}
+    matrix_name = file_base_name.split("/")[-1]
+    mdic = {f"{matrix_name}_data": measure_matrix}
     savemat(f"data/TimeMeasurement/{file_base_name}_matrix.mat", mdic)
     return
 
