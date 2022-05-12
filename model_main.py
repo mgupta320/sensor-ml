@@ -540,7 +540,7 @@ def main():
     input_size = 6
     data_file = "data/DataContainers/ISS_tests/data_container.mat"
     matrix_name = "data_container"
-    multisensor_data = ModelDataContainer(data_file, classes, matrix_name, num_samples=1346, input_vars=input_size)
+    multisensor_data = ModelDataContainer(classes, data_file, matrix_name, num_samples=1346, input_vars=input_size)
     model_data_holder.append((multisensor_data, "multisensor"))
     print("Data loaded")
 

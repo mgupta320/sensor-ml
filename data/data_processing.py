@@ -7,31 +7,40 @@ from scipy.io import loadmat
 
 
 class ModelDataContainer:
-    def __init__(self, file_name, classes, matrix_name=None, time_steps=10, num_samples=1346, input_vars=6):
+    def __init__(self, classes, file_name=None, matrix_name=None, matrix_cont=None, time_steps=10, num_samples=1346, input_vars=6):
         """
         ModelDataContainer initializer that creates container to handle data for model
-        :param file_name: string path to .mat matrix
         :param classes: tuple where each value is a string at its index value in target index
+        :param file_name: string path to .mat matrix
         :param matrix_name: string name of matrix in matlab, defaults to None in which case matrix name is file name
+        :param matrix_cont: tuple containing two numpy arrays containing x data and corresponding labels
         :param time_steps: number of time steps for TCN (can be changed)
+        :param num_samples: number of samples in each test
         :param input_vars: number of input variables in each sample
         """
         # get data from matlab matrix and split into x and y data
-        if matrix_name is None:
-            matrix_name = file_name.split("/")[-1][:-4]
-        input_data = loadmat(file_name, verify_compressed_data_integrity=False)[matrix_name]
-        x = input_data[:, :, 0:input_vars]
-        y = input_data[:, :, input_vars]
+        if file_name is not None:
+            if matrix_name is None:
+                matrix_name = file_name.split("/")[-1][:-4]
+            input_data = loadmat(file_name, verify_compressed_data_integrity=False)[matrix_name]
+            x = input_data[:, :, 0:input_vars]
+            x = np.abs(x)
+            y = input_data[:, :, input_vars]
+        elif matrix_cont is not None:
+            x = np.abs(matrix_cont[0])
+            y = matrix_cont[1]
+        else:
+            raise Exception("Must provide initial data to ModelDataContainer")
 
-        # standardize input data (necessary step for many ML classification applications)
-        standardizer = StandardScaler(with_mean=True, with_std=True)
-        x_standardized = np.zeros(np.shape(x))
-        for i in range(num_samples):
-            x_standardized[:, i, 0:input_vars] = standardizer.fit_transform(x[:, i, 0:input_vars])
+        # # standardize input data (necessary step for many ML classification applications)
+        # standardizer = StandardScaler(with_mean=True, with_std=True)
+        # x_standardized = np.zeros(np.shape(x))
+        # for i in range(num_samples):
+        #     x_standardized[:, i, 0:input_vars] = standardizer.fit_transform(x[:, i, 0:input_vars])
         self.input_size = input_vars
         self.classes = classes
-        self.x = x_standardized.astype(np.float32)
-        # self.x = x.astype(np.float32) for raw data
+        # self.x = x_standardized.astype(np.float32)
+        self.x = x.astype(np.float32)  # for raw data
         self.y = y.astype(np.int64)
         self.x_point = self.x
         self.y_point = self.y
