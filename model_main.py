@@ -544,7 +544,7 @@ def subset_sweep_mlp(model_data_holder, range_nodes, batch_size, learning_rate, 
         for j in range(len(range_nodes)):
             num_nodes_in_hl = range_nodes[j]
             n_iter += 1
-            model = PointModel(num_nodes_in_hl, input_size=model_data.input_size, num_outputs=len(model_data.classes))
+            model = PointModel(num_nodes_in_hl, num_hidden_layers=2, input_size=model_data.input_size, num_outputs=len(model_data.classes))
             if print_updates:
                 print(f"\n--------------------Trying model with {num_nodes_in_hl} nodes "
                       f"for number {i} data subset-----------------------")
@@ -577,8 +577,8 @@ def subset_sweep_mlp(model_data_holder, range_nodes, batch_size, learning_rate, 
                 print(f"{taken_hours} hr {taken_min} min to try {n_iter} models. "
                       f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
                       f"models in grid search\n")
-    mdic = {"accuracy_data": accuracy_values, "f1_data": f1_values}
-    savemat("data/ParameterData/ISS_tests/subset_sweep_results.mat", mdic)
+    mdic = {"accuracy_data_2": accuracy_values, "f1_data_2": f1_values}
+    savemat("data/ParameterData/ISS_tests/subset_sweep_results_2.mat", mdic)
 
 
 def main():
