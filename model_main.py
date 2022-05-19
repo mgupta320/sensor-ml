@@ -551,10 +551,14 @@ def subset_sweep_mlp(model_data_holder, range_nodes, batch_size, learning_rate, 
             k_acc = []
             k_f1 = []
             # get list of k tuples containing training and testing set
-            cv_set = model_data.create_k_fold_val(5, batch_size)
+            cv_set = model_data.create_k_fold_val(3, batch_size)
             for fold, (training_set, testing_set) in enumerate(cv_set):
+                if print_updates:
+                    print(f"Beginning fold {fold}")
                 train_model(model, training_set, testing_set, learning_rate, epochs=epochs)
                 acc, f1 = test_model(model, testing_set)
+                if print_updates:
+                    print(f"{fold} fold accuracy of {acc}, f1 of {f1}")
                 k_acc.append(acc)
                 k_f1.append(f1)
                 # reset model weights to make sure previous testing does not influence results of next fold
@@ -596,10 +600,10 @@ def main():
     epochs = 150
 
     print(f"Beginning subset sweep. Please do not close window.\n")
-    print(f"Finished with subset sweep\n")
     # subset search param
     node_range = list(range(1, 26, 2))
     subset_sweep_mlp(model_data_holder, node_range, batch_size, learning_rate, epochs, True)
+    print(f"Finished with subset sweep\n")
 
 
 if __name__ == "__main__":
