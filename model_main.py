@@ -591,7 +591,7 @@ def main():
         input_data = loadmat(f"data/DataContainers/ISS_tests/data_container_{i}.mat")[f"data_container_{i}"]
         model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data),
                                                   input_vars=input_data.shape[2])
-        model_data_holder.append(model_data_container)
+        model_data_holder.append((model_data_container, i))
     print("Data loaded")
 
     # Needed for both grid searches
@@ -602,7 +602,14 @@ def main():
     print(f"Beginning subset sweep. Please do not close window.\n")
     # subset search param
     node_range = list(range(1, 15, 2))
-    subset_sweep_mlp(model_data_holder, node_range, batch_size, learning_rate, epochs, True)
+    layer_range = list(range(1,3))
+    for container, string_ind in model_data_holder:
+        print(f"Subset {i + 1} sweep beginning")
+        file_name = "ISS_tests/subset_" + str(string_ind)
+        ann_model_grid_search(container, container.input_size, node_range, layer_range,
+                              batch_size, learning_rate, epochs,
+                              True, file_name)
+        print(f"Subset {i + 1} sweep finished")
     print(f"Finished with subset sweep\n")
 
 
