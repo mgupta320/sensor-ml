@@ -544,14 +544,14 @@ def subset_sweep_mlp(model_data_holder, range_nodes, batch_size, learning_rate, 
         for j in range(len(range_nodes)):
             num_nodes_in_hl = range_nodes[j]
             n_iter += 1
-            model = PointModel(num_nodes_in_hl, num_hidden_layers=2, input_size=model_data.input_size, num_outputs=len(model_data.classes))
+            model = PointModel(num_nodes_in_hl, num_hidden_layers=1, input_size=model_data.input_size, num_outputs=len(model_data.classes))
             if print_updates:
                 print(f"\n--------------------Trying model with {num_nodes_in_hl} nodes "
                       f"for number {i} data subset-----------------------")
             k_acc = []
             k_f1 = []
             # get list of k tuples containing training and testing set
-            cv_set = model_data.create_k_fold_val(3, batch_size)
+            cv_set = model_data.create_k_fold_val(5, batch_size)
             for fold, (training_set, testing_set) in enumerate(cv_set):
                 if print_updates:
                     print(f"Beginning fold {fold}")
@@ -577,8 +577,8 @@ def subset_sweep_mlp(model_data_holder, range_nodes, batch_size, learning_rate, 
                 print(f"{taken_hours} hr {taken_min} min to try {n_iter} models. "
                       f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
                       f"models in grid search\n")
-    mdic = {"accuracy_data_2": accuracy_values, "f1_data_2": f1_values}
-    savemat("data/ParameterData/ISS_tests/subset_sweep_results_2.mat", mdic)
+    mdic = {"accuracy_data_1": accuracy_values, "f1_data_1": f1_values}
+    savemat("data/ParameterData/ISS_tests/subset_sweep_results_1.mat", mdic)
 
 
 def main():
@@ -601,7 +601,7 @@ def main():
 
     print(f"Beginning subset sweep. Please do not close window.\n")
     # subset search param
-    node_range = list(range(1, 26, 2))
+    node_range = list(range(1, 15, 2))
     subset_sweep_mlp(model_data_holder, node_range, batch_size, learning_rate, epochs, True)
     print(f"Finished with subset sweep\n")
 
