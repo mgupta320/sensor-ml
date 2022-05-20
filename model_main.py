@@ -587,7 +587,7 @@ def main():
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
     model_data_holder = []
     label_data = loadmat("data/DataContainers/ISS_tests/label_container.mat")["label_container"]
-    for i in range(8):
+    for i in range(9):
         input_data = loadmat(f"data/DataContainers/ISS_tests/data_container_{i}.mat")[f"data_container_{i}"]
         model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data),
                                                   input_vars=input_data.shape[2])
