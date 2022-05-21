@@ -604,12 +604,12 @@ def main():
     node_range = list(range(1, 15, 2))
     layer_range = list(range(1,3))
     for container, string_ind in model_data_holder:
-        print(f"Subset {i + 1} sweep beginning")
+        print(f"Subset {string_ind + 1} sweep beginning")
         file_name = "ISS_tests/subset_" + str(string_ind)
         ann_model_grid_search(container, container.input_size, node_range, layer_range,
                               batch_size, learning_rate, epochs,
                               True, file_name)
-        print(f"Subset {i + 1} sweep finished")
+        print(f"Subset {string_ind + 1} sweep finished")
     print(f"Finished with subset sweep\n")
 
 
