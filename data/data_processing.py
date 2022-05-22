@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MaxAbsScaler
+from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import TensorDataset, DataLoader
 from scipy.io import loadmat
 
@@ -32,14 +32,14 @@ class ModelDataContainer:
         else:
             raise Exception("Must provide initial data to ModelDataContainer")
 
-        # # standardize input data (necessary step for many ML classification applications)
-        # standardizer = StandardScaler(with_mean=True, with_std=True)
-        # x_standardized = np.zeros(np.shape(x))
-        # for i in range(num_samples):
-        #     x_standardized[:, i, 0:input_vars] = standardizer.fit_transform(x[:, i, 0:input_vars])
+        # standardize input data (Necessary step for many ML classification applications)
+        standardizer = MinMaxScaler()
+        x_standardized = np.zeros(np.shape(x))
+        for i in range(num_samples):
+            x_standardized[:, i, :input_vars] = standardizer.fit_transform(x[:, i, :input_vars])
         self.input_size = input_vars
         self.classes = classes
-        # self.x = x_standardized.astype(np.float32)
+        self.x = x_standardized.astype(np.float32)
         self.x = x.astype(np.float32)  # for raw data
         self.y = y.astype(np.int64)
         self.x_point = self.x
