@@ -619,7 +619,7 @@ def main():
     container_raw = ModelDataContainer(classes, matrix_cont=(inputs, labels), num_samples=851,
                                            input_vars=inputs.shape[2],standardize=False)
     batch_size = 300
-    learning_rate = .001
+    learning_rate = .01
     epochs = 150
     node_range = [15]
     layer_range = [1]
