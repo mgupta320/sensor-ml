@@ -31,6 +31,7 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
         print(f'Beginning training with {epochs} epochs at learning rate of {lr}')
     criterion = nn.CrossEntropyLoss()  # Loss function for model
     optimizer = torch.optim.NAdam(model.parameters(), lr=lr)  # Model optimization function
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, epochs // 10)
     acc = 0
     for epoch in range(epochs):
         model.train()
@@ -45,6 +46,7 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
             acc, f1 = test_model(model, testing_data, print_updates=False)
             if print_updates:
                 print(f"{epoch + 1} out of {epochs} epochs: accuracy of {acc}, f1 of {f1}")
+        lr_scheduler.step(epoch)
 
     if print_updates:
         update = "Training completed"
@@ -612,17 +614,22 @@ def main():
     input_data = loadmat("data/DataContainers/BME_tests/multisensor_data_container.mat")["multisensor_data_container"]
     labels = input_data[:, :, 2]
     inputs = input_data[:, :, :2]
-    container = ModelDataContainer(classes, matrix_cont=(inputs, labels), num_samples=851,
-                                           input_vars=inputs.shape[2])
+    container_stand = ModelDataContainer(classes, matrix_cont=(inputs, labels), num_samples=851,
+                                           input_vars=inputs.shape[2],standardize=True)
+    container_raw = ModelDataContainer(classes, matrix_cont=(inputs, labels), num_samples=851,
+                                           input_vars=inputs.shape[2],standardize=False)
     batch_size = 300
     learning_rate = .001
     epochs = 150
-    node_range = list(range(15, 0, -2))
-    layer_range = list(range(1, 2))
+    node_range = [15]
+    layer_range = [1]
     print("beginning trial")
-    ann_model_grid_search(container, container.input_size, node_range, layer_range,
+    ann_model_grid_search(container_stand, container_stand.input_size, node_range, layer_range,
                           batch_size, learning_rate, epochs,
-                          True, "trial_set")
+                          True, "trial_stand")
+    ann_model_grid_search(container_raw, container_raw.input_size, node_range, layer_range,
+                          batch_size, learning_rate, epochs,
+                          True, "trial_raw")
 
 if __name__ == "__main__":
     main()

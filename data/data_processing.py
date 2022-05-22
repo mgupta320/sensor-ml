@@ -7,7 +7,8 @@ from scipy.io import loadmat
 
 
 class ModelDataContainer:
-    def __init__(self, classes, file_name=None, matrix_name=None, matrix_cont=None, time_steps=10, num_samples=1346, input_vars=6):
+    def __init__(self, classes, file_name=None, matrix_name=None, matrix_cont=None, time_steps=10, num_samples=1346, input_vars=6,
+                 standardize=True):
         """
         ModelDataContainer initializer that creates container to handle data for model
         :param classes: tuple where each value is a string at its index value in target index
@@ -32,14 +33,16 @@ class ModelDataContainer:
             raise Exception("Must provide initial data to ModelDataContainer")
 
         # standardize input data (Necessary step for many ML classification applications)
-        standardizer = MinMaxScaler()
-        x_standardized = np.zeros(np.shape(x))
-        for i in range(num_samples):
-            x_standardized[:, i, :input_vars] = standardizer.fit_transform(x[:, i, :input_vars])
+        if standardize:
+            standardizer = MinMaxScaler()
+            x_standardized = np.zeros(np.shape(x))
+            for i in range(num_samples):
+                x_standardized[:, i, :input_vars] = standardizer.fit_transform(x[:, i, :input_vars])
+            self.x = x_standardized.astype(np.float32)
+        else:
+            self.x = np.abs(x.astype(np.float32))
         self.input_size = input_vars
         self.classes = classes
-        self.x = x_standardized.astype(np.float32)
-        self.x = x.astype(np.float32)  # for raw data
         self.y = y.astype(np.int64)
         self.x_point = self.x
         self.y_point = self.y
