@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from torch.utils.data import TensorDataset, DataLoader
 from scipy.io import loadmat
 
@@ -24,10 +24,9 @@ class ModelDataContainer:
                 matrix_name = file_name.split("/")[-1][:-4]
             input_data = loadmat(file_name, verify_compressed_data_integrity=False)[matrix_name]
             x = input_data[:, :, 0:input_vars]
-            x = np.abs(x)
             y = input_data[:, :, input_vars]
         elif matrix_cont is not None:
-            x = np.abs(matrix_cont[0])
+            x = matrix_cont[0]
             y = matrix_cont[1]
         else:
             raise Exception("Must provide initial data to ModelDataContainer")
