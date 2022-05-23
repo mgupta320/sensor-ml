@@ -585,51 +585,49 @@ def main():
     # Create data container for data needed for model
     print("---------------DO NOT CLOSE WINDOW----------\nLoading in data.")
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
-    # model_data_holder = []
-    # label_data = loadmat("data/DataContainers/ISS_tests/label_container.mat")["label_container"]
-    # for i in range(8, -1, -1):
-    #     input_data = loadmat(f"data/DataContainers/ISS_tests/data_container_{i}.mat")[f"data_container_{i}"]
-    #     model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data),
-    #                                               input_vars=input_data.shape[2])
-    #     model_data_holder.append((model_data_container, i))
-    # print("Data loaded")
-    #
-    # # Needed for both grid searches
-    # batch_size = 500
-    # learning_rate = .001
-    # epochs = 150
-    #
-    # print(f"Beginning subset sweep. Please do not close window.\n")
-    # # subset search param
-    # node_range = list(range(1, 15, 2))
-    # layer_range = list(range(1, 2))
-    # for container, string_ind in model_data_holder:
-    #     print(f"Subset {string_ind + 1} sweep beginning")
-    #     file_name = "ISS_tests/subset_" + str(string_ind)
-    #     ann_model_grid_search(container, container.input_size, node_range, layer_range,
-    #                           batch_size, learning_rate, epochs,
-    #                           True, file_name)
-    #     print(f"Subset {string_ind + 1} sweep finished")
-    # print(f"Finished with subset sweep\n")
-    input_data = loadmat("data/DataContainers/BME_tests/multisensor_data_container.mat")["multisensor_data_container"]
-    labels = input_data[:, :, 2]
-    inputs = input_data[:, :, :2]
-    container_stand = ModelDataContainer(classes, matrix_cont=(inputs, labels), num_samples=851,
-                                           input_vars=inputs.shape[2],standardize=True)
-    container_raw = ModelDataContainer(classes, matrix_cont=(inputs, labels), num_samples=851,
-                                           input_vars=inputs.shape[2],standardize=False)
-    batch_size = 300
+    model_data_holder = []
+    label_data = loadmat("data/DataContainers/ISS_tests/label_container.mat")["label_container"]
+    for i in range(9):
+        input_data = loadmat(f"data/DataContainers/ISS_tests/data_container_{i}.mat")[f"data_container_{i}"]
+        model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data),
+                                                  input_vars=input_data.shape[2], standardize=True)
+        model_data_holder.append((model_data_container, str(i)))
+    print("Data loaded")
+
+    # Needed for both grid searches
+    batch_size = 256
     learning_rate = .001
     epochs = 150
-    node_range = [15]
-    layer_range = [1]
-    print("beginning trial")
-    ann_model_grid_search(container_stand, container_stand.input_size, node_range, layer_range,
-                          batch_size, learning_rate, epochs,
-                          True, "trial_stand")
-    ann_model_grid_search(container_raw, container_raw.input_size, node_range, layer_range,
-                          batch_size, learning_rate, epochs,
-                          True, "trial_raw")
+
+    print(f"Beginning subset MLP sweep. Please do not close window.\n")
+    # subset search param
+    node_range = range(1, 16, 2)
+    layer_range = list(range(1, 2))
+    for container, string_ind in model_data_holder:
+        print(f"Subset {string_ind} sweep beginning")
+        file_name = f"ISS_tests/subset_{string_ind}_MLP"
+        ann_model_grid_search(container, container.input_size, node_range, layer_range,
+                              batch_size, learning_rate, epochs,
+                              True, file_name)
+        print(f"Subset {string_ind} sweep finished")
+    print(f"Finished with subset MLP sweep\n")
+
+    print(f"Beginning subset CNN sweep. Please do not close window.\n")
+    # subset search param
+    ts_range = range(2, 11, 2)
+    kernel_range = range(1, 6, 2)
+    fc_range = range(5, 7)
+    layer_range = layer_range
+    for container, string_ind in model_data_holder:
+        print(f"Subset {string_ind} sweep beginning")
+        file_name = f"ISS_tests/subset_{string_ind}_CNN"
+        conv1d_model_grid_search(container, container.input_size,
+                                 ts_range, kernel_range, fc_range, layer_range,
+                              batch_size, learning_rate, epochs,
+                              True, file_name)
+        print(f"Subset {string_ind} sweep finished")
+    print(f"Finished with subset CNN sweep\n")
+    print("WINDOW CAN BE CLOSED")
 
 if __name__ == "__main__":
     main()
