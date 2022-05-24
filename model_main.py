@@ -31,7 +31,6 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
         print(f'Beginning training with {epochs} epochs at learning rate of {lr}')
     criterion = nn.CrossEntropyLoss()  # Loss function for model
     optimizer = torch.optim.NAdam(model.parameters(), lr=lr)  # Model optimization function
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, epochs // 10)
     acc = 0
     for epoch in range(epochs):
         model.train()
@@ -46,7 +45,6 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
             acc, f1 = test_model(model, testing_data, print_updates=False)
             if print_updates:
                 print(f"{epoch + 1} out of {epochs} epochs: accuracy of {acc}, f1 of {f1}")
-        lr_scheduler.step(epoch)
 
     if print_updates:
         update = "Training completed"

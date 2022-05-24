@@ -35,9 +35,7 @@ class ModelDataContainer:
         # standardize input data (Necessary step for many ML classification applications)
         if standardize:
             standardizer = MinMaxScaler()
-            x_standardized = np.zeros(np.shape(x))
-            for i in range(num_samples):
-                x_standardized[:, i, :input_vars] = standardizer.fit_transform(x[:, i, :input_vars])
+            x_standardized = standardizer.fit_transform(x.reshape(-1, x.shape[-1])).reshape(x.shape)
             self.x = x_standardized.astype(np.float32)
         else:
             self.x = np.abs(x.astype(np.float32))
