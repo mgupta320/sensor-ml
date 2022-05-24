@@ -595,7 +595,7 @@ def main():
     # Needed for both grid searches
     batch_size = 256
     learning_rate = .001
-    epochs = 150
+    epochs = 100
 
     print(f"Beginning subset MLP sweep. Please do not close window.\n")
     # subset search param
@@ -612,17 +612,17 @@ def main():
 
     print(f"Beginning subset CNN sweep. Please do not close window.\n")
     # subset search param
-    ts_range = range(2, 11, 2)
-    kernel_range = range(1, 6, 2)
-    fc_range = range(5, 7)
+    ts_range = range(4, 11, 2)
+    kernel_range = range(3, 6, 2)
+    fc_range = range(6, 7)
     layer_range = layer_range
     for container, string_ind in model_data_holder:
         print(f"Subset {string_ind} sweep beginning")
         file_name = f"ISS_tests/subset_{string_ind}_CNN"
         conv1d_model_grid_search(container, container.input_size,
                                  ts_range, kernel_range, fc_range, layer_range,
-                              batch_size, learning_rate, epochs,
-                              True, file_name)
+                                 batch_size, learning_rate, epochs,
+                                 True, file_name)
         print(f"Subset {string_ind} sweep finished")
     print(f"Finished with subset CNN sweep\n")
     print("WINDOW CAN BE CLOSED")
