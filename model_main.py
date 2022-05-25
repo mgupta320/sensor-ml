@@ -529,63 +529,13 @@ def tcn_model_grid_search(model_data, input_size, time_step_range, kernel_sizes,
     return
 
 
-def subset_sweep_mlp(model_data_holder, range_nodes, batch_size, learning_rate, epochs, print_updates=False):
-    accuracy_values = np.empty((len(model_data_holder), len(range_nodes)))
-    f1_values = np.empty((len(model_data_holder), len(range_nodes)))
-    total_iter = len(model_data_holder) * len(range_nodes)
-    n_iter = 0
-    start_time = time.time()
-    if print_updates:
-        print(f"Beginning grid search of {total_iter} models")
-    for i in range(len(model_data_holder)):
-        model_data = model_data_holder[i]
-        for j in range(len(range_nodes)):
-            num_nodes_in_hl = range_nodes[j]
-            n_iter += 1
-            model = PointModel(num_nodes_in_hl, num_hidden_layers=1, input_size=model_data.input_size, num_outputs=len(model_data.classes))
-            if print_updates:
-                print(f"\n--------------------Trying model with {num_nodes_in_hl} nodes "
-                      f"for number {i} data subset-----------------------")
-            k_acc = []
-            k_f1 = []
-            # get list of k tuples containing training and testing set
-            cv_set = model_data.create_k_fold_val(5, batch_size)
-            for fold, (training_set, testing_set) in enumerate(cv_set):
-                if print_updates:
-                    print(f"Beginning fold {fold}")
-                train_model(model, training_set, testing_set, learning_rate, epochs=epochs)
-                acc, f1 = test_model(model, testing_set)
-                if print_updates:
-                    print(f"{fold} fold accuracy of {acc}, f1 of {f1}")
-                k_acc.append(acc)
-                k_f1.append(f1)
-                # reset model weights to make sure previous testing does not influence results of next fold
-                model.reset_params()
-            accuracy_values[i, j] = sum(k_acc) / len(k_acc)
-            f1_values[i, j] = sum(k_f1) / len(k_f1)
-            if print_updates:
-                print(f"finished model of {num_nodes_in_hl} for number {i} data subset")
-                end_time = time.time()
-                time_taken = end_time - start_time
-                taken_hours = time_taken // 3600
-                taken_min = (time_taken % 3600) // 60
-                time_predicted = time_taken / n_iter * (total_iter - n_iter)
-                pred_hours = time_predicted // 3600
-                pred_min = (time_predicted % 3600) // 60
-                print(f"{taken_hours} hr {taken_min} min to try {n_iter} models. "
-                      f"Predicted {pred_hours} hr {pred_min} min left for {total_iter - n_iter} "
-                      f"models in grid search\n")
-    mdic = {"accuracy_data_1": accuracy_values, "f1_data_1": f1_values}
-    savemat("data/ParameterData/ISS_tests/subset_sweep_results_1.mat", mdic)
-
-
 def main():
     # Create data container for data needed for model
     print("---------------DO NOT CLOSE WINDOW----------\nLoading in data.")
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
     model_data_holder = []
     label_data = loadmat("data/DataContainers/ISS_tests/label_container.mat")["label_container"]
-    for i in range(9):
+    for i in [9]:
         input_data = loadmat(f"data/DataContainers/ISS_tests/data_container_{i}.mat")[f"data_container_{i}"]
         model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data),
                                                   input_vars=input_data.shape[2], standardize=True)
@@ -609,6 +559,22 @@ def main():
                               True, file_name)
         print(f"Subset {string_ind} sweep finished")
     print(f"Finished with subset MLP sweep\n")
+
+    print(f"Beginning subset CNN sweep. Please do not close window.\n")
+    # subset search param
+    ts_range = range(4, 11, 2)
+    kernel_range = range(3, 6, 2)
+    fc_range = range(6, 7)
+    layer_range = list(range(1, 2))
+    for container, string_ind in model_data_holder:
+        print(f"Subset {string_ind} sweep beginning")
+        file_name = f"ISS_tests/subset_{string_ind}_CNN"
+        conv1d_model_grid_search(container, container.input_size,
+                                 ts_range, kernel_range, fc_range, layer_range,
+                                 batch_size, learning_rate, epochs,
+                                 True, file_name)
+        print(f"Subset {string_ind} sweep finished")
+    print(f"Finished with subset CNN sweep\n")
     print("WINDOW CAN BE CLOSED")
 
 if __name__ == "__main__":
