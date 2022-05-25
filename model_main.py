@@ -547,19 +547,6 @@ def main():
     learning_rate = .001
     epochs = 100
 
-    print(f"Beginning subset MLP sweep. Please do not close window.\n")
-    # subset search param
-    node_range = range(1, 16, 2)
-    layer_range = list(range(1, 2))
-    for container, string_ind in model_data_holder:
-        print(f"Subset {string_ind} sweep beginning")
-        file_name = f"ISS_tests/subset_{string_ind}_MLP"
-        ann_model_grid_search(container, container.input_size, node_range, layer_range,
-                              batch_size, learning_rate, epochs,
-                              True, file_name)
-        print(f"Subset {string_ind} sweep finished")
-    print(f"Finished with subset MLP sweep\n")
-
     print(f"Beginning subset CNN sweep. Please do not close window.\n")
     # subset search param
     ts_range = range(4, 11, 2)
