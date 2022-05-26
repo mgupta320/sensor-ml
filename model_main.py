@@ -562,7 +562,7 @@ def main():
     print(f"Beginning cut subset CNN sweep. Please do not close window.\n")
     # subset search param
     ts_range = range(6, 15, 4)
-    kernel_range = range(4, 9, 2)
+    kernel_range = range(5, 9, 3)
     fc_range = range(6, 7)
     layer_range = range(1, 2)
     for container, string_ind in model_data_holder:
