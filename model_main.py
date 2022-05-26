@@ -542,7 +542,7 @@ def main():
 
     # Needed for both grid searches
     batch_size = 512
-    learning_rate = .01
+    learning_rate = .005
     epochs = 100
 
     print(f"Beginning cut subset MLP sweep. Please do not close window.\n")
