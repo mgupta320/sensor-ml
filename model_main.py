@@ -556,7 +556,7 @@ def main():
                               batch_size, learning_rate, epochs,
                               True, file_name)
         print(f"Subset {string_ind} sweep finished")
-    print(f"Finished with subset CNN sweep\n")
+    print(f"Finished with subset MLP sweep\n")
     print("WINDOW CAN BE CLOSED")
 
     print(f"Beginning cut subset CNN sweep. Please do not close window.\n")
