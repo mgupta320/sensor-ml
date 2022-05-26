@@ -65,12 +65,10 @@ def test_model(model, testing_set, print_updates=False):
     model.eval()
     out_pred = []
     out_true = []
-    num_zeroes_guess = 0.0
     with torch.no_grad():
         for inputs, labels in testing_set:
             output = model(inputs)  # Get model prediction
             output = (output.argmax(dim=1, keepdim=True)[0]).numpy()
-            num_zeroes_guess += output == 0
             out_pred.extend(output)  # Save prediction
             labels = labels.numpy()
             out_true.extend(labels)  # Save actual labels
@@ -534,28 +532,42 @@ def main():
     print("---------------DO NOT CLOSE WINDOW----------\nLoading in data.")
     classes = ('Toluene', 'M-Xylene', 'Ethylbenzene', 'Methanol', 'Ethanol')
     model_data_holder = []
-    label_data = loadmat("data/DataContainers/ISS_tests/label_container.mat")["label_container"]
-    for i in [9]:
-        input_data = loadmat(f"data/DataContainers/ISS_tests/data_container_{i}.mat")[f"data_container_{i}"]
+    label_data = loadmat("data/DataContainers/ISS_tests/cut_label_container.mat")["cut_label_container"]
+    for i in range(9):
+        input_data = loadmat(f"data/DataContainers/ISS_tests/cut_data_container_{i}.mat")[f"cut_data_container_{i}"]
         model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data),
                                                   input_vars=input_data.shape[2], standardize=True)
         model_data_holder.append((model_data_container, str(i)))
     print("Data loaded")
 
     # Needed for both grid searches
-    batch_size = 256
-    learning_rate = .001
+    batch_size = 512
+    learning_rate = .01
     epochs = 100
 
-    print(f"Beginning subset CNN sweep. Please do not close window.\n")
+    print(f"Beginning cut subset MLP sweep. Please do not close window.\n")
     # subset search param
-    ts_range = range(4, 11, 2)
-    kernel_range = range(3, 6, 2)
-    fc_range = range(6, 7)
-    layer_range = list(range(1, 2))
+    node_range = range(5, 22, 3)
+    layer_range = range(1, 2)
     for container, string_ind in model_data_holder:
         print(f"Subset {string_ind} sweep beginning")
-        file_name = f"ISS_tests/subset_{string_ind}_CNN"
+        file_name = f"ISS_tests/cut_subset_{string_ind}_MLP"
+        ann_model_grid_search(container, container.input_size, node_range, layer_range,
+                              batch_size, learning_rate, epochs,
+                              True, file_name)
+        print(f"Subset {string_ind} sweep finished")
+    print(f"Finished with subset CNN sweep\n")
+    print("WINDOW CAN BE CLOSED")
+
+    print(f"Beginning cut subset CNN sweep. Please do not close window.\n")
+    # subset search param
+    ts_range = range(6, 15, 4)
+    kernel_range = range(4, 9, 2)
+    fc_range = range(6, 7)
+    layer_range = range(1, 2)
+    for container, string_ind in model_data_holder:
+        print(f"Subset {string_ind} sweep beginning")
+        file_name = f"ISS_tests/cut_subset_{string_ind}_CNN"
         conv1d_model_grid_search(container, container.input_size,
                                  ts_range, kernel_range, fc_range, layer_range,
                                  batch_size, learning_rate, epochs,
