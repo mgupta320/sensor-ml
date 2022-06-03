@@ -30,7 +30,7 @@ def train_model(model, training_data, testing_data, lr, epochs=10, test_interval
     if print_updates:
         print(f'Beginning training with {epochs} epochs at learning rate of {lr}')
     criterion = nn.CrossEntropyLoss()  # Loss function for model
-    optimizer = torch.optim.NAdam(model.parameters(), lr=lr)  # Model optimization function
+    optimizer = torch.optim.NAdam(model.parameters(), lr=lr)  # Adam optimization function
     acc = 0
     for epoch in range(epochs):
         model.train()
@@ -535,23 +535,23 @@ def main():
     label_data = loadmat("data/DataContainers/ISS_tests/cut_label_container.mat")["cut_label_container"]
     for i in range(9):
         input_data = loadmat(f"data/DataContainers/ISS_tests/cut_data_container_{i}.mat")[f"cut_data_container_{i}"]
-        model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data),
+        model_data_container = ModelDataContainer(classes, matrix_cont=(input_data, label_data), num_samples=1300,
                                                   input_vars=input_data.shape[2], standardize=True)
         model_data_holder.append((model_data_container, str(i)))
     print("Data loaded")
 
     # Needed for both grid searches
-    batch_size = 512
-    learning_rate = .005
-    epochs = 100
+    batch_size = 16
+    learning_rate = .01
+    epochs = 50
 
     print(f"Beginning cut subset MLP sweep. Please do not close window.\n")
     # subset search param
-    node_range = range(5, 22, 3)
+    node_range = range(5, 21, 3)
     layer_range = range(1, 2)
     for container, string_ind in model_data_holder:
         print(f"Subset {string_ind} sweep beginning")
-        file_name = f"ISS_tests/cut_subset_{string_ind}_MLP"
+        file_name = f"ISS_tests/MLP_redo/subset_{string_ind}_MLP"
         ann_model_grid_search(container, container.input_size, node_range, layer_range,
                               batch_size, learning_rate, epochs,
                               True, file_name)
@@ -567,7 +567,7 @@ def main():
     layer_range = range(1, 2)
     for container, string_ind in model_data_holder:
         print(f"Subset {string_ind} sweep beginning")
-        file_name = f"ISS_tests/cut_subset_{string_ind}_CNN"
+        file_name = f"ISS_tests/CNN_redo/subset_{string_ind}_CNN"
         conv1d_model_grid_search(container, container.input_size,
                                  ts_range, kernel_range, fc_range, layer_range,
                                  batch_size, learning_rate, epochs,
