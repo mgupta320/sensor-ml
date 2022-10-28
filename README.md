@@ -24,4 +24,4 @@ import sklearn
 * models/point_model.py :  This folder contains each of the PyTorch machine learning models used throughout the project. 
 
 ## References
-* Lea, C., Vidal, R., Reiter, A., Hager, G.D. (2016). Temporal Convolutional Networks: A Unified Approach to Action Segmentation. In: Hua, G., Jégou, H. (eds) Computer Vision – ECCV 2016 Workshops. ECCV 2016. Lecture Notes in Computer Science(), vol 9915. Springer, Cham. https://doi.org/10.1007/978-3-319-49409-8_7
+* [1] Lea, C., Vidal, R., Reiter, A., Hager, G.D. (2016). Temporal Convolutional Networks: A Unified Approach to Action Segmentation. In: Hua, G., Jégou, H. (eds) Computer Vision – ECCV 2016 Workshops. ECCV 2016. Lecture Notes in Computer Science(), vol 9915. Springer, Cham. https://doi.org/10.1007/978-3-319-49409-8_7
